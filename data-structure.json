@@ -1,0 +1,29 @@
+{
+    "docName": "Document Name",
+    "description": "Document Description",
+    "cssStyle": "default.css",
+    "header": "Document Header",
+    "footer": "Document Footer",
+    "keywords": "Document Keywords",
+    "author": "Document Author",
+    "copyright": "Document Copyright",
+    "license": "Document License",
+    "version": "Document Version",
+    "date": "Document Date",
+    "pages": [
+        {
+            "pageNumber": 1,
+            "cssStyle": "default.css",
+            "header": "Page 1 Header",
+            "footer": "Page 1 Footer",
+            "markdown-content:": "Page 1 Content"
+        },
+        {
+            "pageNumber": 2,
+            "cssStyle": "default.css",
+            "header": "Page 2 Header",
+            "footer": "Page 2 Footer",
+            "markdown-content:": "Page 2 Content"
+        }
+    ]
+}

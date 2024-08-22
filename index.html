@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Markdown to HTML Converter</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        #drop-zone {
+            border: 2px dashed #ccc;
+            border-radius: 20px;
+            width: 100%;
+            margin: 20px 0;
+            padding: 20px;
+            text-align: center;
+        }
+        #drop-zone.highlight {
+            border-color: purple;
+        }
+        #file-selector {
+            display: none;
+        }
+        #select-button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Markdown to HTML Converter</h1>
+    <div id="drop-zone">
+        <p>Drag and drop a Markdown file here</p>
+        <p>OR</p>
+        <button id="select-button">Select a File</button>
+        <input type="file" id="file-selector" accept=".md,.markdown,text/markdown">
+    </div>
+    <div id="content"></div>
+
+    <!-- Load the ParseMarkdown.js file -->
+    <script src="src/ParseMarkdown.js"></script>
+
+    <script>
+        // Ensure the MarkdownConverter class is loaded
+        if (typeof MarkdownConverter === 'undefined') {
+            console.error('MarkdownConverter not found. Make sure ParseMarkdown.js is loaded correctly.');
+        }
+
+        const converter = new MarkdownConverter();
+        const dropZone = document.getElementById('drop-zone');
+        const fileSelector = document.getElementById('file-selector');
+        const selectButton = document.getElementById('select-button');
+        const content = document.getElementById('content');
+
+        function handleFile(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const markdown = e.target.result;
+                const html = converter.convertToHtml(markdown);
+                content.innerHTML = html;
+            };
+            reader.readAsText(file);
+        }
+
+        // File selection event
+        fileSelector.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        });
+
+        // Button click event
+        selectButton.addEventListener('click', function() {
+            fileSelector.click();
+        });
+
+        // Drag and drop events
+        dropZone.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.classList.add('highlight');
+        });
+
+        dropZone.addEventListener('dragleave', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.classList.remove('highlight');
+        });
+
+        dropZone.addEventListener('drop', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            this.classList.remove('highlight');
+            const file = e.dataTransfer.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        });
+    </script>
+</body>
+</html>
