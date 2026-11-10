@@ -1,0 +1,37 @@
+/* ── Tokens ───────────────────────────────────────────────────────────────────
+   Global design variables. Change these first; everything else reads from them. */
+:root {
+  /* Type families */
+  --font-body: "Inter", "Helvetica Neue", Arial, sans-serif;
+  --font-heading: "Inter Tight", "Inter", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Courier Prime", "Courier New", monospace;
+
+  /* Color — warm neutrals and one signal color, used sparingly */
+  --ink: #111111;
+  --ink-soft: #55544f;
+  --ink-faint: #8f8e89;
+  --rule: #cfcec8;
+  --rule-strong: #111111;
+  --tint: #f3f2ee;
+  --accent: #e2231a;
+
+  /* Type scale (print sizes) */
+  --size-body: 9.5pt;
+  --size-small: 8pt;
+  --size-tiny: 6.75pt;
+  --size-h1: 24pt;
+  --size-h2: 14pt;
+  --size-h3: 10.5pt;
+  --size-display: 40pt;
+  --leading: 1.5;
+  --leading-tight: 1.1;
+
+  /* Tracking */
+  --tracking-display: -0.035em;
+  --tracking-heading: -0.02em;
+  --tracking-caps: 0.09em;
+
+  /* Rhythm: one unit ≈ one line of body text */
+  --unit: 14pt;
+  --hairline: 0.5pt;
+}

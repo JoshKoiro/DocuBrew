@@ -1,0 +1,34 @@
+<div class="tp">
+  <header class="tp-head">
+    <p class="tp-kind">Standard Operating Procedure</p>
+    {{#if organization}}<p class="tp-org">{{ organization }}</p>{{/if}}
+  </header>
+
+  <div class="tp-main">
+    <p class="tp-number">{{ sop.number }}</p>
+    <h1 class="tp-title">{{ title }}</h1>
+    {{#if subtitle}}<p class="tp-subtitle">{{ subtitle }}</p>{{/if}}
+  </div>
+
+  <table class="tp-meta">
+    <tbody>
+      <tr><th scope="row">Revision</th><td>{{ revision }}</td></tr>
+      <tr><th scope="row">Effective</th><td>{{ date }}</td></tr>
+      {{#if sop.category}}<tr><th scope="row">Category</th><td>{{ sop.category }}</td></tr>{{/if}}
+      {{#if appliesTo}}<tr><th scope="row">Applies to</th><td>{{ appliesTo }}</td></tr>{{/if}}
+      {{#if author}}<tr><th scope="row">Author</th><td>{{ author }}</td></tr>{{/if}}
+    </tbody>
+  </table>
+
+  {{#if revisions}}
+  <section class="tp-history">
+    <h2 class="tp-history-title">Revision history</h2>
+    <table>
+      <thead><tr><th>Rev</th><th>Date</th><th>Change</th></tr></thead>
+      <tbody>
+        {{#each revisions}}<tr><td>{{ this.rev }}</td><td>{{ this.date }}</td><td>{{ this.change }}</td></tr>{{/each}}
+      </tbody>
+    </table>
+  </section>
+  {{/if}}
+</div>

@@ -1,0 +1,114 @@
+/* ── Base ─────────────────────────────────────────────────────────────────────
+   Plain elements, as Markdown produces them. */
+html {
+  font-family: var(--font-body);
+  font-size: var(--size-body);
+  line-height: var(--leading);
+  color: var(--ink);
+  font-feature-settings: "ss01", "cv11", "tnum";
+  font-kerning: normal;
+  hyphens: auto;
+  text-rendering: optimizeLegibility;
+}
+
+body { margin: 0; counter-reset: figure table; }
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-heading);
+  hyphens: manual;
+  break-after: avoid;
+  break-inside: avoid;
+  margin: 0;
+}
+h1 { font-size: var(--size-h1); letter-spacing: var(--tracking-display); margin: 0 0 var(--unit); }
+h2 {
+  font-size: var(--size-h2);
+  margin: calc(var(--unit) * 1.75) 0 calc(var(--unit) * 0.6);
+  padding-top: calc(var(--unit) * 0.4);
+  border-top: var(--hairline) solid var(--rule-strong);
+}
+h3 { font-size: var(--size-h3); margin: calc(var(--unit) * 1.2) 0 calc(var(--unit) * 0.35); }
+h4, h5, h6 {
+  font-family: var(--font-body);
+  font-size: var(--size-small);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  margin: var(--unit) 0 calc(var(--unit) * 0.25);
+}
+
+p { margin: 0 0 calc(var(--unit) * 0.6); orphans: 3; widows: 3; }
+strong, b { font-weight: 600; }
+a { color: inherit; text-decoration: underline; text-decoration-thickness: var(--hairline); text-underline-offset: 2pt; }
+
+ul, ol { margin: 0 0 calc(var(--unit) * 0.6); padding-left: 1.4em; }
+li { margin: 0 0 0.2em; }
+li::marker { color: var(--ink-soft); }
+ul { list-style: square; }
+
+hr { border: 0; border-top: var(--hairline) solid var(--rule); margin: var(--unit) 0; }
+
+blockquote {
+  margin: var(--unit) 0;
+  padding: 0 0 0 calc(var(--unit) * 0.9);
+  border-left: 2pt solid var(--ink);
+  font-family: var(--font-heading);
+  font-size: 11pt;
+  letter-spacing: var(--tracking-heading);
+}
+
+code, kbd, samp { font-family: var(--font-mono); font-size: 0.95em; }
+kbd { border: var(--hairline) solid var(--ink-faint); padding: 0 0.3em; border-radius: 1.5pt; }
+pre {
+  font-family: var(--font-mono);
+  font-size: var(--size-small);
+  line-height: 1.45;
+  background: var(--tint);
+  padding: calc(var(--unit) * 0.6) calc(var(--unit) * 0.8);
+  margin: 0 0 var(--unit);
+  white-space: pre-wrap;
+  break-inside: avoid;
+}
+
+table { width: 100%; border-collapse: collapse; margin: 0 0 var(--unit); font-size: var(--size-small); break-inside: auto; }
+thead { display: table-header-group; }
+tr { break-inside: avoid; }
+th {
+  text-align: left;
+  font-weight: 600;
+  font-size: var(--size-tiny);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--ink-soft);
+  border-bottom: var(--hairline) solid var(--rule-strong);
+  padding: 0 0.8em 0.35em 0;
+}
+td { border-bottom: var(--hairline) solid var(--rule); padding: 0.45em 0.8em 0.45em 0; vertical-align: top; }
+
+img { max-width: 100%; height: auto; }
+figure { margin: var(--unit) 0; break-inside: avoid; }
+figure img { display: block; width: 100%; }
+figcaption {
+  font-size: var(--size-small);
+  color: var(--ink-soft);
+  margin-top: 0.5em;
+  padding-top: 0.35em;
+  border-top: var(--hairline) solid var(--rule);
+}
+figure:has(figcaption) { counter-increment: figure; }
+figcaption::before {
+  content: "Fig. " counter(figure);
+  font-weight: 600;
+  color: var(--ink);
+  margin-right: 0.6em;
+}
+
+/* Footnotes (markdown-it-footnote renders them at the end of each chapter) */
+.footnotes-sep { border: 0; border-top: var(--hairline) solid var(--rule); width: 30%; margin: calc(var(--unit) * 1.5) 0 0.5em; }
+.footnotes { font-size: var(--size-small); color: var(--ink-soft); }
+.footnotes-list { padding-left: 1.2em; }
+.footnote-ref a, .footnote-backref { text-decoration: none; }
+.footnote-ref { font-size: 0.75em; vertical-align: super; line-height: 0; }

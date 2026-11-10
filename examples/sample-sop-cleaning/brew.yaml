@@ -1,0 +1,18 @@
+title: Cleaning a Manual Typewriter
+subtitle: Solvent cleaning of the type basket, segment and carriage, and exterior care.
+author: ""
+revision: B
+date: 2026-11-10
+blend: typewriter-sop
+
+variables:
+  organization: The Creative Nerd Co.
+  sop:
+    number: SOP-001
+    category: Cleaning
+  appliesTo: Portable and standard manual typewriters
+  revisions:
+    - { rev: A, date: 2026-10-02, change: First issue }
+    - { rev: B, date: 2026-11-10, change: Added exterior care section }
+  machine:
+    example: 1964 Royal Safari

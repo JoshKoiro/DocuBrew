@@ -1,0 +1,11 @@
+name: Typewriter SOP
+version: 1.0.0
+extends: typewriter-base
+description: Standard operating procedures for the repair bench — numbered sections, step lists, warnings, revision history.
+
+variables:
+  sop:
+    number: SOP-000
+    category: Repair
+  appliesTo: ""
+  revisions: []

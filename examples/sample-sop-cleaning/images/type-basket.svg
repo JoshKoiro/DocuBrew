@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" width="1600" height="1000">
+  <rect width="1600" height="1000" fill="#ecebe6"/>
+  <path d="M0 0L1600 1000 M1600 0L0 1000" stroke="#d3d2cc" stroke-width="3"/>
+  <rect x="1.5" y="1.5" width="1597" height="997" fill="none" stroke="#bdbcb6" stroke-width="3"/>
+  <text x="50%" y="50%" dy="0.35em" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="72" fill="#55544f">Photo placeholder — Type basket, front view</text>
+</svg>

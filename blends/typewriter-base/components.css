@@ -1,0 +1,87 @@
+/* ── Components ───────────────────────────────────────────────────────────────
+   Named pieces you opt into from Markdown: callouts, figure presets, step lists. */
+
+/* Callouts:  ::: warning Optional title  …  ::: */
+.callout {
+  margin: var(--unit) 0;
+  padding: calc(var(--unit) * 0.5) 0 calc(var(--unit) * 0.5) calc(var(--unit) * 0.9);
+  border-left: 2pt solid var(--ink-faint);
+  break-inside: avoid;
+}
+.callout > :last-child { margin-bottom: 0; }
+.callout-title {
+  font-size: var(--size-tiny);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  margin: 0 0 0.35em;
+}
+.callout-tip, .callout-important { border-left-color: var(--ink); }
+.callout-warning, .callout-caution { border-left-color: var(--accent); }
+.callout-warning .callout-title, .callout-caution .callout-title { color: var(--accent); }
+.callout-danger { border-left: 0; background: var(--accent); color: #fff; padding: calc(var(--unit) * 0.6) calc(var(--unit) * 0.9); }
+.callout-danger a { color: #fff; }
+
+/* Figure presets: ![Alt](images/x.jpg "Caption"){.fig-right} */
+figure.fig-full { width: 100%; }
+figure.fig-half { width: 50%; margin-left: auto; margin-right: auto; }
+figure.fig-small { width: 32%; margin-left: auto; margin-right: auto; }
+figure.fig-right { float: right; width: 44%; margin: 0.25em 0 var(--unit) var(--unit); }
+figure.fig-left { float: left; width: 44%; margin: 0.25em var(--unit) var(--unit) 0; }
+h2, h3, .callout, table, pre { clear: both; }
+
+/* Steps:  ::: steps  (wrap an ordered list) */
+.steps > ol { list-style: none; padding: 0; counter-reset: step; display: flow-root; /* sit beside floated figures, not under them */ }
+.steps > ol > li {
+  counter-increment: step;
+  position: relative;
+  padding: 0.55em 0 0.55em 2.6em;
+  border-top: var(--hairline) solid var(--rule);
+  margin: 0;
+  break-inside: avoid;
+}
+.steps > ol > li:last-child { border-bottom: var(--hairline) solid var(--rule); }
+.steps > ol > li::before {
+  content: counter(step, decimal-leading-zero);
+  position: absolute;
+  left: 0;
+  top: 0.42em;
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 12pt;
+  letter-spacing: var(--tracking-heading);
+}
+.steps > ol > li > p:last-child { margin-bottom: 0; }
+
+/* Tools / materials list:  ::: tools Tools & materials */
+.tools {
+  margin: var(--unit) 0;
+  padding: calc(var(--unit) * 0.6) calc(var(--unit) * 0.8);
+  background: var(--tint);
+  break-inside: avoid;
+}
+.tools .block-title, .block-title {
+  font-size: var(--size-tiny);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  margin: 0 0 0.4em;
+}
+.tools ul { columns: 2; column-gap: calc(var(--unit) * 1.5); margin: 0; }
+.tools li { break-inside: avoid; }
+
+/* Spec table:  add {.spec} on the line after a table */
+table.spec td:first-child {
+  width: 32%;
+  font-size: var(--size-tiny);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--ink-soft);
+}
+table.spec td:last-child { font-family: var(--font-mono); font-size: var(--size-body); }
+
+/* Utilities */
+.page-break { break-after: page; }
+.keep-together { break-inside: avoid; }
+.mono { font-family: var(--font-mono); }

@@ -1,0 +1,42 @@
+/* SOP pages: SOP number and section in the header, title and page count in the footer. */
+.run-sop { string-set: sop-number content(text); }
+.run-rev { string-set: sop-rev content(text); }
+
+@page {
+  @top-left {
+    content: string(sop-number);
+    font-family: var(--font-mono);
+    font-size: var(--size-small);
+    color: var(--accent);
+    vertical-align: bottom;
+    padding-bottom: 10pt;
+  }
+  @top-right {
+    content: string(chapter-title);
+    font-family: var(--font-body);
+    font-size: var(--size-tiny);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: var(--tracking-caps);
+    vertical-align: bottom;
+    padding-bottom: 10pt;
+  }
+  @bottom-center {
+    content: string(sop-rev);
+    font-family: var(--font-body);
+    font-size: var(--size-tiny);
+    color: var(--ink-soft);
+    vertical-align: top;
+    padding-top: 10pt;
+  }
+}
+
+/* No running header on a section's first page — the opener already says it. */
+@page chapter:first {
+  @top-right { content: none; }
+}
+@page cover {
+  @top-left { content: none; }
+  @top-right { content: none; }
+  @bottom-center { content: none; }
+}

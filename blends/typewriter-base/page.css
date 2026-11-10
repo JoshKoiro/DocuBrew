@@ -1,0 +1,30 @@
+/* ── Page ─────────────────────────────────────────────────────────────────────
+   Page size and margins come from blend.yaml (page:) and can be overridden in brew.yaml.
+   This file controls what appears in the margins. */
+@page {
+  @bottom-left {
+    content: string(doc-title);
+    font-family: var(--font-body);
+    font-size: var(--size-tiny);
+    color: var(--ink-soft);
+    vertical-align: top;
+    padding-top: 10pt;
+  }
+  @bottom-right {
+    content: counter(page) " / " counter(pages);
+    font-family: var(--font-body);
+    font-size: var(--size-tiny);
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    vertical-align: top;
+    padding-top: 10pt;
+  }
+}
+
+/* Each chapter file starts a new page on the "chapter" named page. */
+.chapter { page: chapter; break-before: page; }
+.title-page { page: cover; }
+@page cover {
+  @bottom-left { content: none; }
+  @bottom-right { content: none; }
+}

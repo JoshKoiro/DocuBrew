@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DocuBrew</title>
+<link rel="icon" href="/app/favicon.svg" type="image/svg+xml">
+<script>
+  // Apply the saved or OS theme before first paint.
+  (function () {
+    var t = null;
+    try { t = localStorage.getItem('docubrew.theme'); } catch (e) {}
+    if (!t) t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    document.documentElement.dataset.theme = t;
+  })();
+</script>
+<link rel="stylesheet" href="/vendor/fonts/inter/400.css">
+<link rel="stylesheet" href="/vendor/fonts/inter/500.css">
+<link rel="stylesheet" href="/vendor/fonts/inter/600.css">
+<link rel="stylesheet" href="/vendor/fonts/inter-tight/600.css">
+<link rel="stylesheet" href="/vendor/fonts/inter-tight/700.css">
+<link rel="stylesheet" href="/app/app.css">
+<script type="module" src="/app/main.js"></script>
+</head>
+<body>
+  <header class="bar">
+    <div class="bar-left">
+      <span class="wordmark">DocuBrew</span>
+      <span class="bar-sep" aria-hidden="true"></span>
+      <span class="bar-doc" id="doc-title">No Brew open</span>
+    </div>
+    <nav class="bar-right">
+      <button class="btn" id="btn-new" title="New Brew (Ctrl+Alt+N)">New</button>
+      <button class="btn" id="btn-open" title="Open Brew (Ctrl+O)">Open</button>
+      <span class="bar-sep" aria-hidden="true"></span>
+      <button class="btn needs-brew" id="btn-folder" title="Show the Brew folder" disabled>Folder</button>
+      <button class="btn needs-brew" id="btn-code" title="Open the Brew in VS Code" disabled>VS Code</button>
+      <button class="btn btn-primary needs-brew" id="btn-export" title="Export PDF (Ctrl+E)" disabled>Export PDF</button>
+      <button class="btn btn-icon" id="btn-theme" title="Switch light / dark" aria-label="Switch light or dark theme">
+        <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.6A8.6 8.6 0 0 1 9.4 3.5a8.6 8.6 0 1 0 11.1 11.1z"/></svg>
+      </button>
+    </nav>
+  </header>
+
+  <div class="layout">
+    <aside class="side" id="side">
+      <section class="side-block">
+        <h2 class="label">Brews</h2>
+        <ul class="list" id="brew-list"></ul>
+      </section>
+      <section class="side-block">
+        <h2 class="label">Blend Library</h2>
+        <ul class="list list-static" id="blend-list"></ul>
+      </section>
+      <footer class="side-foot">
+        <span class="label">Workspace</span>
+        <span class="path" id="workspace-path"></span>
+      </footer>
+    </aside>
+
+    <main class="stage">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <span class="live" id="live" title="Connection to the DocuBrew server"><span class="live-dot"></span><span id="live-text">Connecting</span></span>
+          <span class="meta" id="meta"></span>
+        </div>
+        <div class="toolbar-right zoom" role="group" aria-label="Zoom">
+          <button class="btn btn-quiet" id="zoom-out" aria-label="Zoom out">−</button>
+          <button class="btn btn-quiet zoom-value" id="zoom-reset" title="Reset to 100%">100%</button>
+          <button class="btn btn-quiet" id="zoom-in" aria-label="Zoom in">+</button>
+          <button class="btn btn-quiet" id="zoom-fit">Fit</button>
+        </div>
+      </div>
+      <div class="canvas" id="canvas">
+        <div class="empty" id="empty" hidden>
+          <p class="label">DocuBrew</p>
+          <p class="statement">Open a Brew, or start a new one.</p>
+          <div class="empty-actions">
+            <button class="btn btn-primary" data-action="new">New Brew</button>
+            <button class="btn" data-action="open">Open Brew</button>
+          </div>
+        </div>
+        <div class="error" id="error" hidden>
+          <p class="label">Render error</p>
+          <pre id="error-text"></pre>
+          <p class="error-note">Showing the last good render. Fix the file and save to refresh.</p>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Open Brew -->
+  <dialog class="dialog" id="dlg-open">
+    <form method="dialog" class="dialog-form">
+      <header class="dialog-head">
+        <h2>Open Brew</h2>
+        <button class="btn btn-quiet" value="cancel" aria-label="Close">Close</button>
+      </header>
+      <div class="pathbar">
+        <button type="button" class="btn" id="fs-up">Up</button>
+        <button type="button" class="btn" id="fs-home">Workspace</button>
+        <input type="text" id="fs-path" spellcheck="false" aria-label="Folder path">
+      </div>
+      <ul class="fs-list" id="fs-list" role="listbox" aria-label="Folders"></ul>
+      <footer class="dialog-foot">
+        <span class="hint" id="fs-hint">Folders marked Brew contain a brew.yaml.</span>
+        <button type="button" class="btn btn-primary" id="fs-open" disabled>Open</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- New Brew -->
+  <dialog class="dialog" id="dlg-new">
+    <form class="dialog-form" id="new-form">
+      <header class="dialog-head">
+        <h2>New Brew</h2>
+        <button type="button" class="btn btn-quiet" data-close aria-label="Close">Close</button>
+      </header>
+      <label class="field">
+        <span class="label">Title</span>
+        <input type="text" name="title" required autocomplete="off" placeholder="Escapement Adjustment">
+      </label>
+      <label class="field">
+        <span class="label">Folder name</span>
+        <input type="text" name="folder" autocomplete="off" spellcheck="false" placeholder="escapement-adjustment">
+      </label>
+      <fieldset class="field">
+        <legend class="label">Blend</legend>
+        <div class="blend-picks" id="blend-picks"></div>
+      </fieldset>
+      <p class="form-error" id="new-error" hidden></p>
+      <footer class="dialog-foot">
+        <span class="hint">The Blend is copied into the Brew.</span>
+        <button type="submit" class="btn btn-primary">Create</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

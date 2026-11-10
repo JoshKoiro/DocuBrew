@@ -1,0 +1,48 @@
+{
+  "name": "docubrew",
+  "version": "0.1.0",
+  "description": "Markdown + reusable CSS Blends → print-ready PDFs, with a live browser preview.",
+  "main": "src/server/server.js",
+  "scripts": {
+    "start": "node bin/docubrew.js",
+    "build": "node bin/docubrew.js build",
+    "dev": "node --watch-path=src bin/docubrew.js --no-open"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JoshKoiro/DocuBrew.git"
+  },
+  "keywords": [
+    "markdown",
+    "pdf",
+    "pagedjs",
+    "print",
+    "css"
+  ],
+  "author": "Josh Koiro",
+  "license": "GPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/JoshKoiro/DocuBrew/issues"
+  },
+  "homepage": "https://github.com/JoshKoiro/DocuBrew#readme",
+  "dependencies": {
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/inter-tight": "^5.3.0",
+    "chokidar": "^6.0.0",
+    "markdown-it": "^15.0.3",
+    "markdown-it-attrs": "^5.0.1",
+    "markdown-it-container": "^4.0.0",
+    "markdown-it-footnote": "^4.0.0",
+    "pagedjs": "^0.4.3",
+    "puppeteer": "^25.17.0",
+    "ws": "^8.22.2",
+    "yaml": "^2.9.1"
+  },
+  "type": "module",
+  "bin": {
+    "docubrew": "bin/docubrew.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
