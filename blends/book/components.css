@@ -1,0 +1,17 @@
+/* ── Components ── */
+figure.fig-full { width: 100%; }
+figure.fig-half { width: 55%; margin-left: auto; margin-right: auto; }
+figure.fig-small { width: 35%; margin-left: auto; margin-right: auto; }
+
+/* Callouts are rare in books; set them as quiet ruled boxes. */
+.callout { margin: 1em 0; padding: 0.5em 0; border-top: 0.5pt solid var(--ink); border-bottom: 0.5pt solid var(--ink); font-size: 10pt; break-inside: avoid; }
+.callout p { text-indent: 0; }
+.callout-title { font-variant: small-caps; letter-spacing: var(--tracking-caps); margin-bottom: 0.2em; }
+
+/* An epigraph:  ::: epigraph  … — Attribution  ::: */
+.epigraph { margin: 0 0 2em auto; width: 70%; font-style: italic; font-size: 10pt; text-align: left; }
+.epigraph p { text-indent: 0; text-align: left; }
+.epigraph p:last-child { font-style: normal; text-align: right; margin-top: 0.3em; }
+
+.page-break { break-after: page; }
+.no-indent { text-indent: 0; }

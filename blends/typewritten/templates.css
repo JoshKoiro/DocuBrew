@@ -1,0 +1,11 @@
+/* Typed heading block: title underlined, then a TO/FROM/DATE/RE memo head when those are set. */
+.tw-head { margin: 0 0 2em; }
+.tw-title { font-size: var(--size-body); text-decoration: underline; text-underline-offset: 3pt; margin: 0 0 1em; }
+.tw-memo { margin: 0 0 1em; border-collapse: collapse; }
+.tw-memo th, .tw-memo td { border: 0; padding: 0 2ch 0.1em 0; font-weight: 700; text-transform: uppercase; }
+.tw-memo td { font-weight: 400; text-transform: none; }
+.tw-rule { margin: 0; overflow: hidden; white-space: nowrap; }
+.tw-rule::after { content: "================================================================================"; }
+.tw-section { margin: 2em 0 1em; break-after: avoid; break-inside: avoid; }
+.tw-section-number { color: var(--accent); margin-right: 1ch; }
+.tw-section-title { display: inline; text-transform: uppercase; font-size: var(--size-body); text-decoration: underline; text-underline-offset: 3pt; margin: 0; }

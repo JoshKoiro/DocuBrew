@@ -4,6 +4,9 @@
 //   docubrew [start] [brew-folder]     start the app (opens your browser)
 //   docubrew build <brew-folder>...    export PDFs without opening the app
 //       --out-dir <dir>  --set key=value  --data records.yaml|json|csv  --name "{{machine.serial}}"
+//   docubrew check [brew-folder]...    validate (--render: also check overflow; --json)
+//   docubrew context <brew-folder>     everything an AI needs to write for this Brew (--content, --no-guide)
+//   docubrew guide                     (re)write AGENTS.md / CLAUDE.md in the workspace
 //   docubrew pack <brew-folder>...     save each Brew as a single .brew file
 //   docubrew unpack <file.brew>...     import .brew files into the workspace
 //   docubrew new "<title>" --blend <id>
@@ -26,6 +29,8 @@ import { exportPdf } from '../src/core/pdf.js';
 import { slugify, deepMerge } from '../src/core/util.js';
 import { packBrew, unpackBrew } from '../src/core/brewfile.js';
 import { parseSets, loadRecords, fileNameFrom } from '../src/core/data.js';
+import { checkBrew, overflowProblems } from '../src/core/check.js';
+import { buildContext, writeWorkspaceGuide } from '../src/core/context.js';
 
 const { values: opts, positionals } = parseArgs({
   allowPositionals: true,
@@ -42,11 +47,17 @@ const { values: opts, positionals } = parseArgs({
     data: { type: 'string', short: 'd' },
     name: { type: 'string', short: 'n' },
     into: { type: 'string' },
+    render: { type: 'boolean' },
+    json: { type: 'boolean' },
+    content: { type: 'boolean' },
+    guide: { type: 'boolean', default: true },
+    'no-guide': { type: 'boolean' },
+    force: { type: 'boolean' },
     help: { type: 'boolean', short: 'h' },
   },
 });
 
-const COMMANDS = ['start', 'build', 'new', 'list', 'sample', 'blend', 'pack', 'unpack', 'help'];
+const COMMANDS = ['start', 'build', 'new', 'list', 'sample', 'blend', 'pack', 'unpack', 'check', 'context', 'guide', 'help'];
 let [command, ...args] = positionals;
 if (!COMMANDS.includes(command)) {
   if (command) args.unshift(command);
@@ -57,7 +68,7 @@ if (opts.help) command = 'help';
 const workspace = resolveWorkspace(opts.workspace);
 
 try {
-  await ({ start, build, new: create, list, sample, blend, pack, unpack, help })[command]();
+  await ({ start, build, new: create, list, sample, blend, pack, unpack, check, context, guide, help })[command]();
 } catch (err) {
   console.error(`\n  ${err.message}\n`);
   process.exit(1);
@@ -130,6 +141,71 @@ async function build() {
   }
   if (ok + failed > 1) console.log(`\n  ${ok} exported${failed ? `, ${failed} failed` : ''}.`);
   if (failed) process.exitCode = 1;
+}
+
+async function check() {
+  await ensureWorkspace(workspace);
+  const dirs = args.length ? args.map((a) => path.resolve(a)) : (await listBrews(workspace)).map((b) => b.path);
+  const results = [];
+  let server = null;
+  let browser = null;
+  try {
+    if (opts.render) {
+      server = await startServer({ workspace, port: 0, quiet: true });
+      browser = await (await import('puppeteer')).default.launch({ headless: true, args: process.platform === 'linux' ? ['--no-sandbox'] : [] });
+    }
+    for (const dir of dirs) {
+      const r = await checkBrew(dir, { libraryDir: libraryDir(workspace) });
+      let pages = null;
+      if (opts.render && r.problems.every((p) => p.severity !== 'error' || p.file !== 'brew.yaml')) {
+        await server.openBrew(dir);
+        const page = await browser.newPage();
+        await page.goto(`${server.url}/preview/?mode=print`, { waitUntil: 'load' });
+        await page.waitForFunction('window.__docubrew && (window.__docubrew.done || window.__docubrew.error)', { timeout: 120000 });
+        const state = await page.evaluate(() => ({ ...window.__docubrew, overflow: window.__docubrewOverflow ? window.__docubrewOverflow() : [] }));
+        await page.close();
+        if (state.error) r.problems.unshift({ severity: 'error', file: 'brew.yaml', line: null, message: `Render failed: ${state.error}` });
+        else { pages = state.pages; r.problems.push(...overflowProblems(state.overflow)); }
+        r.ok = !r.problems.some((p) => p.severity === 'error');
+      }
+      results.push({ brew: dir, folder: path.basename(dir), pages, ...r });
+    }
+  } finally {
+    await browser?.close();
+    await server?.close();
+  }
+
+  if (opts.json) {
+    console.log(JSON.stringify(results.length === 1 ? results[0] : results, null, 2));
+  } else {
+    for (const r of results) {
+      const count = (sev) => r.problems.filter((p) => p.severity === sev).length;
+      const parts = [['error', count('error')], ['warning', count('warning')], ['note', count('info')]].filter(([, n]) => n).map(([w, n]) => `${n} ${w}${n > 1 ? 's' : ''}`);
+      console.log(`\n  ${r.ok ? '✓' : '✗'} ${r.folder}${r.pages ? `  (${r.pages} pages)` : ''}  ${parts.join(', ') || 'no problems'}`);
+      for (const p of r.problems) {
+        console.log(`    ${p.severity.padEnd(8)} ${`${p.file}${p.line ? `:${p.line}` : ''}`.padEnd(30)} ${p.message}`);
+        if (p.hint) console.log(`    ${''.padEnd(8)} ${''.padEnd(30)} → ${p.hint}`);
+      }
+    }
+    console.log('');
+  }
+  if (results.some((r) => !r.ok)) process.exitCode = 1;
+}
+
+async function context() {
+  if (args.length !== 1) throw new Error('Usage: docubrew context <brew-folder> [--content] [--no-guide]');
+  await ensureWorkspace(workspace);
+  process.stdout.write(await buildContext(path.resolve(args[0]), {
+    libraryDir: libraryDir(workspace),
+    content: Boolean(opts.content),
+    guide: opts.guide && !opts['no-guide'],
+  }));
+}
+
+async function guide() {
+  await ensureWorkspace(workspace);
+  const { written } = await writeWorkspaceGuide(workspace, { force: true });
+  for (const f of written) console.log(`  ✓ ${f}`);
 }
 
 async function pack() {
@@ -224,6 +300,9 @@ async function help() {
       --set key=value                 override a variable (repeatable), e.g. --set machine.serial=1234
       --data <file>                   one PDF per record in a .yaml/.json/.csv file
       --name "<pattern>"              file names, e.g. "{{machine.model}}-{{machine.serial}}"
+  docubrew check [brew-folder]        validate a Brew (all Brews if none given): --render, --json
+  docubrew context <brew-folder>      print what an AI needs to write for this Brew: --content, --no-guide
+  docubrew guide                      rewrite AGENTS.md / CLAUDE.md (the AI guide) in the workspace
   docubrew pack <brew-folder>         save a Brew as one .brew file (in its dist/ folder, or -o)
   docubrew unpack <file.brew>         import a .brew into the workspace (--name, --into)
   docubrew new "<title>" --blend <id> create a Brew in the workspace

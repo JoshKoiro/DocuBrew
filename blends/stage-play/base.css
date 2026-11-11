@@ -1,0 +1,16 @@
+/* ── Base ── */
+html { font-family: var(--font); font-size: var(--size); line-height: var(--line); color: var(--ink); }
+body { margin: 0; }
+p { margin: 0 0 1em; }
+h1, h2, h3, h4 { font-size: var(--size); font-weight: 400; text-transform: uppercase; margin: 0 0 1em; break-after: avoid; break-inside: avoid; }
+h2 { text-align: center; text-decoration: underline; margin-top: 2em; }   /* Scene headings */
+h3 { text-decoration: underline; }
+em, i { font-style: italic; }
+strong, b { font-weight: 700; }
+ul, ol { margin: 0 0 1em; padding-left: 2em; }
+hr { border: 0; text-align: center; margin: 1em 0; }
+hr::after { content: "*  *  *"; }
+blockquote { margin: 0 0 1em 1in; }
+table { border-collapse: collapse; margin: 0 0 1em; }
+td, th { padding: 0 1em 0 0; text-align: left; font-weight: 400; }
+img { max-width: 100%; }

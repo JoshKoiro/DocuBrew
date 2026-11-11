@@ -127,7 +127,7 @@ export async function flattenBlend(libraryDir, id, destDir) {
   manifest.flattenedFrom = chain.map((c) => c.id);
 
   const header = '# Copied from the Blend Library by DocuBrew. Edit the Library Blend, not this copy.\n';
-  await fs.writeFile(path.join(destDir, MANIFEST), header + YAML.stringify(manifest));
+  await fs.writeFile(path.join(destDir, MANIFEST), header + YAML.stringify(manifest, { lineWidth: 0 }));
 
   return { source: id, version: manifest.version, hash };
 }

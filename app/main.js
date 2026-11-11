@@ -216,6 +216,67 @@ async function exportBrew() {
 }
 $('#btn-pack').onclick = exportBrew;
 
+// ─── Check & AI context ───
+async function runCheck() {
+  if (state.mode !== 'brew' || !state.brew) return;
+  const dlg = $('#dlg-check');
+  $('#check-title').textContent = `Check — ${state.brew.title}`;
+  $('#check-note').textContent = 'Checking…';
+  $('#check-list').replaceChildren();
+  if (!dlg.open) dlg.showModal();
+  try {
+    await session.flush();
+    const r = await api.check();
+    // Overflow comes from the rendered preview itself
+    const overflow = preview.overflow().map((o) => ({
+      severity: 'warning', file: o.file || 'content', line: o.line ? Number(o.line) : null,
+      message: o.kind === 'tall' ? `${o.what} is taller than the page (page ${o.page}) and gets cut off.` : `${o.what} runs ${o.by} px past the page margin (page ${o.page}).`,
+      hint: o.what === 'Image' || o.what === 'Figure' ? 'Give it a smaller width, e.g. {.fig-half}.' : 'Shorten it, reduce its font size, or set a width in overrides.css.',
+    }));
+    const problems = [...r.problems.filter((p) => p.severity === 'error'), ...overflow, ...r.problems.filter((p) => p.severity !== 'error')];
+    const n = (sev) => problems.filter((p) => p.severity === sev).length;
+    $('#btn-check').classList.toggle('has-errors', n('error') > 0);
+    $('#check-note').textContent = problems.length
+      ? [`${n('error')} error${n('error') === 1 ? '' : 's'}`, `${n('warning')} warning${n('warning') === 1 ? '' : 's'}`, `${n('info')} note${n('info') === 1 ? '' : 's'}`].join(' · ')
+      : '';
+    $('#check-list').replaceChildren(...(problems.length
+      ? problems.map((p) => {
+          const canOpen = p.file && /\.(md|ya?ml|css)$/i.test(p.file);
+          return el('li', { class: canOpen ? 'is-link' : '', onclick: canOpen ? () => { dlg.close(); if (!state.editorOn) setEditor(true); session.open(p.file, { line: p.line || 1 }).catch((e) => toast(e.message, true)); } : null },
+            el('span', { class: `check-sev sev-${p.severity}` }, p.severity === 'info' ? 'note' : p.severity),
+            el('span', { class: 'check-where', title: `${p.file}${p.line ? `:${p.line}` : ''}` }, `${p.file}${p.line ? `:${p.line}` : ''}`),
+            el('span', {}, p.message),
+            p.hint ? el('span', { class: 'check-hint' }, p.hint) : null);
+        })
+      : [el('li', { class: 'check-ok', style: 'display:block' }, el('strong', {}, 'No problems found.'), `${state.pages} pages, nothing off the page, every image, variable and class accounted for.`)]));
+  } catch (err) {
+    $('#check-note').textContent = err.message;
+  }
+}
+$('#btn-check').onclick = runCheck;
+$('#check-again').onclick = runCheck;
+
+async function copyAiContext() {
+  if (state.mode !== 'brew' || !state.brew) return;
+  try {
+    await session.flush();
+    const { text } = await api.context(true);
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const ta = el('textarea', { style: 'position:fixed;opacity:0' }, text);
+      document.body.append(ta); ta.select(); document.execCommand('copy'); ta.remove();
+    }
+    const kb = Math.round(text.length / 1024);
+    notify({
+      title: 'AI context copied',
+      body: [`About ${kb} KB (~${Math.round(text.length / 4 / 1000)}k tokens): this Brew's settings, its Blend's styles and variables, all chapters, current problems, and the DocuBrew guide.`, 'Paste it into Claude or any AI chat, then ask for what you want written.'],
+      timeout: 12000,
+    });
+  } catch (err) { toast(err.message, true); }
+}
+$('#btn-ai').onclick = copyAiContext;
+
 // ─── Sidebar: files ───
 async function loadFiles() {
   if (!state.brew) { state.files = null; renderFiles(); return; }

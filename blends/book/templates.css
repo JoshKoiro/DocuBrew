@@ -1,0 +1,23 @@
+/* ── Templates ── */
+/* Title page */
+.bk-title-page { height: 7.4in; display: flex; flex-direction: column; text-align: center; }
+.bk-title { font-size: 26pt; line-height: 1.1; font-weight: 400; margin: 1.6in 0 0; letter-spacing: 0.01em; text-indent: 0; }
+.bk-subtitle { font-size: 12pt; font-style: italic; margin: 0.25in 0 0; text-indent: 0; text-align: center; }
+.bk-author { font-size: 12pt; font-variant: small-caps; letter-spacing: var(--tracking-caps); margin: 0.6in 0 0; text-indent: 0; text-align: center; }
+.bk-publisher { margin-top: auto; font-size: 9pt; font-variant: small-caps; letter-spacing: var(--tracking-caps); text-indent: 0; text-align: center; }
+
+/* Chapter opener: dropped ~1.5in, number in small caps over the title */
+.chapter-opener { padding-top: 1.3in; margin-bottom: 0.45in; text-align: center; break-inside: avoid; }
+.co-number { font-variant: small-caps; letter-spacing: 0.12em; font-size: 10pt; margin: 0 0 0.6em; text-indent: 0; text-align: center; }
+.co-title { font-size: 19pt; font-weight: 400; line-height: 1.15; margin: 0; }
+
+/* Contents */
+.toc-page .toc { padding-top: 1.1in; }
+.toc-title { font-size: 15pt; font-weight: 400; text-align: center; font-variant: small-caps; letter-spacing: 0.1em; margin: 0 0 0.5in; }
+.toc-list { list-style: none; margin: 0; padding: 0; }
+.toc-entry { margin: 0 0 0.5em; }
+.toc-entry a { display: flex; gap: 0.6em; align-items: baseline; color: inherit; text-decoration: none; }
+.toc-entry a::after { content: target-counter(attr(href), page); font-variant-numeric: oldstyle-nums; }
+.toc-text { flex: 1; }
+.toc-number { min-width: 1.4em; font-variant-numeric: oldstyle-nums; }
+.toc-level-2 a { padding-left: 2em; font-size: 10pt; }

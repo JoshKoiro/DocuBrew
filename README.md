@@ -6,7 +6,7 @@ Markdown + reusable CSS styles → print-ready PDFs, with a live, paginated prev
 
 Write in Markdown (in any editor), style with layered CSS **Blends**, and see the printed pages update every time you save. Export to PDF with page numbers, running headers and footers handled by standard CSS Paged Media.
 
-Status: **Phase 5 — all planned phases built** (core loop, editing, visual styling, templates, the Blend Editor, `.brew` files and batch builds). See [PLAN.md](PLAN.md) for the roadmap and [docs/DECISIONS.md](docs/DECISIONS.md) for why things are the way they are.
+Status: **0.9.0 Beta** — all planned phases, standard Blends (#2) and AI support (#1). Next: an MCP server (#3). See [PLAN.md](PLAN.md) for the roadmap and [docs/DECISIONS.md](docs/DECISIONS.md) for why things are the way they are.
 
 ## Quick start
 
@@ -37,6 +37,8 @@ On first run DocuBrew creates its workspace at `~/Documents/DocuBrew/` with the 
 - **Blend Editor.** Click a Blend in the *Blend Library* to edit it. The preview shows the **specimen** — a built-in document with every element and template — or any of your Brews (*Preview with*). Every stylesheet layer is listed; ones the Blend doesn't have yet show *empty* and are created when you first save. The inspector works here too, writing *All …* rules to the layer you pick. **Release version…** bumps the version and records a changelog entry in `blend.yaml`. **+ New Blend** starts one that builds on another. **← Back to document** returns to your Brew.
 - **Blend updates.** When a Brew's Blend copy differs from the Library, a banner offers **Review changes** (a file-by-file diff) and **Update**. Updating never touches your content or `overrides.css`. If the copy was edited by hand, the banner says so first.
 - **Sharing (`.brew` files).** **Export .brew** saves the whole Brew — content, images, `overrides.css` and its own copy of the Blend — as one file in `dist/`, ready to email or archive (`dist/` itself and `.git` are left out). To open one, pick it in **Open** (it's listed with a *.brew file* tag) or drag it onto the app. It's unpacked into your workspace as a new Brew; if that folder name is taken it becomes `name-2`. If the Brew uses a Blend you don't have, it still renders from its own copy, and the banner offers **Add Blend to Library**.
+- **Check.** **Check** lists problems with file and line — missing images, unknown `{{variables}}`, classes the Blend doesn't style, unclosed `:::` blocks, attributes in the wrong place, broken links, CSS brace errors, and content wider or taller than the page. Click one to jump to it.
+- **Working with AI.** **Copy AI context** puts everything an assistant needs on your clipboard — this Brew's settings, its Blend's presets, classes, tokens and variables, every chapter, the current problems, and the DocuBrew guide — ready to paste into Claude or any chat. Your workspace also has `AGENTS.md` (the guide) and `CLAUDE.md`, which coding assistants like Claude Code read on their own. See [docs/AI-GUIDE.md](docs/AI-GUIDE.md).
 - **Samples.** *+ Add sample Brews* (or `docubrew sample`) puts back any bundled sample you've deleted.
 
 Shortcuts: I inspect · Esc stop inspecting · Ctrl+S save · Ctrl+E export PDF · Ctrl+O open Brew · Ctrl+\ toggle editor · Ctrl+Alt+N new Brew.
@@ -145,9 +147,37 @@ A Blend can `extends:` another. When a Brew is created, the whole chain is flatt
 
 Templates use `{{ value }}`, `{{{ raw html }}}`, `{{#if x}}…{{else}}…{{/if}}` and `{{#each list}}…{{ this.field }}…{{/each}}`. Inside a chapter opener, `chapter.title`, `chapter.number`, `chapter.numberPadded` and any front-matter field are available.
 
-Bundled Blends: **Typewriter Base** (abstract foundation), **Typewriter SOP**, and **Typewriter Care Sheet** (a short record that ships with a machine: machine details, work performed, care tips — sections flow without page breaks).
+Bundled Blends (each has a sample Brew):
 
-**Writing page margins (Paged.js quirk):** if a Blend redefines a margin box another Blend already set (e.g. `@bottom-left`), repeat all of its declarations, not just `content` — the earlier ones are dropped. And give headings that carry a rule `break-inside: avoid`, or a sliver of them can be left at the foot of a page.
+| Blend | For |
+|---|---|
+| **Typewriter SOP** | Procedures: title page with revision history, numbered sections, steps, warnings, contents |
+| **Typewriter Care Sheet** | A short record that ships with a machine: machine details, work performed, care tips |
+| **Book** | 6 × 9 in books: EB Garamond, mirrored margins, running heads, chapters on right-hand pages, small-cap lead-ins |
+| **Stage Play** | Play manuscripts: Courier 12 pt, centered character names, indented italic stage directions, cast list |
+| **Typewritten** | Letters, memos and drafts that look typed: Courier throughout, underlined emphasis, red-ribbon accents |
+| **Typewriter Base** | The shared foundation the typewriter Blends build on (not used directly) |
+
+### Script markup (Stage Play)
+
+Blends with `markdown: { script: true }` read plays written in the Fountain style:
+
+```
+HAMLET
+(aside)
+To be, or not to be.
+
+(He draws his dagger.)
+```
+
+A paragraph that starts with a NAME IN CAPITALS is dialogue; a line in parentheses inside it is a parenthetical; a paragraph entirely in parentheses is a stage direction.
+
+### Other Markdown options a Blend can set
+
+`markdown: { leadIn: 4 }` wraps the first four words of each chapter in `<span class="lead-in">` (Book sets them in small capitals). Every chapter's first paragraph also gets class `chapter-first`.
+
+**Paged.js quirks:** `::first-line` rules are dropped (use `.chapter-first` / `.lead-in`).
+**Writing page margins:** if a Blend redefines a margin box another Blend already set (e.g. `@bottom-left`), repeat all of its declarations, not just `content` — the earlier ones are dropped. And give headings that carry a rule `break-inside: avoid`, or a sliver of them can be left at the foot of a page.
 
 ## Command line
 
@@ -162,6 +192,9 @@ docubrew sample                   # add back any deleted sample Brews
 docubrew blend status             # which Brews' Blend copies differ from the Library
 docubrew blend update path/to/brew
 docubrew blend reset typewriter-sop   # replace a Library Blend with the version bundled with DocuBrew
+docubrew check [path/to/brew]     # validate (all Brews if none given); --render adds overflow checks, --json for tools
+docubrew context path/to/brew     # print the AI context (--content adds chapter text, --no-guide leaves out the guide)
+docubrew guide                    # rewrite AGENTS.md / CLAUDE.md in the workspace
 docubrew pack path/to/brew        # save as one .brew file (in its dist/, or -o file.brew)
 docubrew unpack file.brew         # import into the workspace (--name folder, --into dir)
 ```

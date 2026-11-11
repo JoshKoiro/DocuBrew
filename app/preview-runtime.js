@@ -23,6 +23,40 @@
     },
   };
 
+  // Used by `docubrew check --render` and the app's Check: content that doesn't fit the page box.
+  window.__docubrewOverflow = function () {
+    const out = [];
+    const seen = new Set();
+    const names = { IMG: 'Image', FIGURE: 'Figure', TABLE: 'Table', PRE: 'Code block', SVG: 'Graphic' };
+    document.querySelectorAll('.pagedjs_page').forEach((page, i) => {
+      const area = page.querySelector('.pagedjs_page_content');
+      if (!area) return;
+      const box = area.getBoundingClientRect();
+      const zoom = parseFloat(document.body.style.zoom) || 1;
+      area.querySelectorAll('img, figure, table, pre, svg, [data-source-line]').forEach((el) => {
+        const r = el.getBoundingClientRect();
+        const wide = r.right - box.right;
+        const tall = (el.tagName === 'IMG' || el.tagName === 'FIGURE') && r.height > box.height + 2;
+        const scrolls = el.tagName === 'PRE' && el.scrollWidth > el.clientWidth + 2;
+        if (wide <= 2 && !tall && !scrolls) return;
+        const src = el.closest('[data-source-line]');
+        const section = el.closest('[data-source-file]');
+        const key = `${section?.dataset.sourceFile}:${src?.dataset.sourceLine}:${el.tagName}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        out.push({
+          page: i + 1,
+          file: section?.dataset.sourceFile || null,
+          line: src?.dataset.sourceLine || null,
+          what: names[el.tagName] || 'Content',
+          kind: tall ? 'tall' : 'wide',
+          by: Math.round((scrolls ? el.scrollWidth - el.clientWidth : wide) / zoom),
+        });
+      });
+    });
+    return out;
+  };
+
   // Added after Paged.js has processed the stylesheets, so it never reaches print.
   function addScreenChrome() {
     const style = document.createElement('style');

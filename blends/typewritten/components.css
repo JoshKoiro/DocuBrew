@@ -1,0 +1,12 @@
+/* Callouts as typed boxes; the red half of the ribbon for warnings. */
+.callout { border: 0.8pt dashed var(--ink); padding: 0.6em 1ch; }
+.callout-title { font-size: var(--size-body); letter-spacing: 0.02em; }
+.callout-warning, .callout-caution, .callout-danger { border-color: var(--accent); background: none; color: var(--ink); }
+.callout-warning .callout-title, .callout-caution .callout-title, .callout-danger .callout-title { color: var(--accent); }
+.steps > ol > li { border-top: 0; padding-left: 4ch; }
+.steps > ol > li:last-child { border-bottom: 0; }
+.steps > ol > li::before { font-family: var(--font-body); font-size: var(--size-body); color: var(--accent); content: counter(step) "."; }
+.tools { border: 0.8pt dashed var(--ink); background: none; }
+
+/* Memo block:  ::: memo  with a "TO / FROM / DATE / RE" list, or use the title page template */
+.memo-line { margin: 0; }

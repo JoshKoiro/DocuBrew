@@ -1,0 +1,14 @@
+/* ── Tokens ── */
+:root {
+  --font-body: "EB Garamond", Garamond, Georgia, serif;
+  --font-display: "EB Garamond", Garamond, Georgia, serif;
+  --ink: #1b1a18;
+  --ink-soft: #5a5750;
+  --rule: #b9b5ab;
+  --size-body: 11pt;
+  --size-small: 9pt;
+  --size-running: 8.5pt;
+  --leading: 1.38;
+  --indent: 1.4em;
+  --tracking-caps: 0.08em;
+}

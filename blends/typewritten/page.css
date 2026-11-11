@@ -1,0 +1,9 @@
+/* Page numbers centered at the foot: - 2 - */
+@page {
+  @bottom-left { content: none; }
+  @bottom-right { content: none; }
+  @bottom-center { content: "- " counter(page) " -"; font-family: var(--font-body); font-size: var(--size-body); color: var(--ink); vertical-align: top; padding-top: 0.3in; }
+}
+.title-page { page: auto; }
+.chapter { page: auto; break-before: auto; }
+.chapter + .chapter { margin-top: 2em; }

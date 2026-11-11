@@ -1,6 +1,6 @@
 {
   "name": "docubrew",
-  "version": "0.5.0",
+  "version": "0.9.0",
   "description": "Markdown + reusable CSS Blends → print-ready PDFs, with a live browser preview.",
   "main": "src/server/server.js",
   "scripts": {

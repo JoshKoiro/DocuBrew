@@ -1,0 +1,59 @@
+/* ── Base ── Book text: justified, hyphenated, indented paragraphs with no space between. */
+html {
+  font-family: var(--font-body);
+  font-size: var(--size-body);
+  line-height: var(--leading);
+  color: var(--ink);
+  font-kerning: normal;
+  font-variant-ligatures: common-ligatures;
+  font-variant-numeric: oldstyle-nums;
+  hyphens: auto;
+}
+body { margin: 0; counter-reset: figure; }
+
+p { margin: 0; text-indent: var(--indent); text-align: justify; orphans: 2; widows: 2; }
+/* No indent after a heading, break, quote, figure or list — the space already separates. */
+h1 + p, h2 + p, h3 + p, h4 + p, hr + p, blockquote + p, figure + p, ul + p, ol + p, .chapter-opener + p, .epigraph + p, .db-running + p { text-indent: 0; }
+/* The opening line of a chapter in small capitals */
+/* The chapter's opening words in small capitals (DocuBrew wraps them: markdown.leadIn in blend.yaml) */
+p.chapter-first { text-indent: 0; }
+.lead-in { font-variant: small-caps; letter-spacing: 0.05em; }
+
+h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 400; line-height: 1.2; hyphens: manual; break-after: avoid; break-inside: avoid; }
+h2 { font-size: 11pt; text-align: center; font-variant: small-caps; letter-spacing: var(--tracking-caps); margin: 1.6em 0 0.8em; }
+h3 { font-size: 11pt; font-style: italic; margin: 1.3em 0 0.4em; }
+h4 { font-size: 11pt; margin: 1em 0 0.3em; }
+
+em, i { font-style: italic; }
+strong, b { font-weight: 600; }
+a { color: inherit; text-decoration: none; }
+
+/* Scene break */
+hr { border: 0; margin: 1em 0; height: 1.38em; text-align: center; break-after: avoid; }
+hr::after { content: "⁂"; font-size: 1em; }
+
+blockquote { margin: 0.9em 1.6em; font-size: 10pt; }
+blockquote p { text-indent: 0; }
+blockquote p + p { text-indent: var(--indent); }
+
+ul, ol { margin: 0.7em 0; padding-left: 1.6em; text-align: left; }
+li { margin: 0.15em 0; }
+li p { text-indent: 0; }
+
+table { width: 100%; border-collapse: collapse; margin: 1em 0; font-size: 9.5pt; font-variant-numeric: lining-nums tabular-nums; }
+th { font-weight: 600; text-align: left; border-bottom: 0.6pt solid var(--ink); padding: 0.2em 0.6em 0.2em 0; }
+td { border-bottom: 0.4pt solid var(--rule); padding: 0.25em 0.6em 0.25em 0; vertical-align: top; }
+
+code, pre { font-family: "Courier Prime", "Courier New", monospace; font-size: 0.88em; }
+pre { white-space: pre-wrap; margin: 1em 0; text-align: left; }
+
+img { max-width: 100%; }
+figure { margin: 1.2em 0; break-inside: avoid; text-align: center; }
+figure img { display: block; width: 100%; }
+figcaption { font-size: var(--size-small); font-style: italic; color: var(--ink-soft); margin-top: 0.4em; text-indent: 0; text-align: center; }
+
+.footnotes-sep { border: 0; border-top: 0.4pt solid var(--ink); width: 25%; margin: 1.5em 0 0.5em; height: auto; }
+.footnotes-sep::after { content: none; }
+.footnotes { font-size: var(--size-small); }
+.footnotes p { text-indent: 0; }
+.footnote-ref { font-size: 0.7em; vertical-align: super; line-height: 0; }

@@ -1,0 +1,33 @@
+/* ── Page ── Mirrored margins; folio (page number) on the outer top corner;
+   book title over left pages, chapter title over right pages.
+   Paged.js: each margin box here lists all its declarations (later rules replace earlier ones). */
+.run-title { string-set: book-title content(text); }
+.co-title { string-set: chapter-title content(text); }
+
+@page :left {
+  margin-left: 0.65in;
+  margin-right: 0.85in;
+  @top-left { content: counter(page); font-family: var(--font-body); font-size: var(--size-running); font-variant-numeric: oldstyle-nums; vertical-align: bottom; padding-bottom: 12pt; }
+  @top-center { content: string(book-title); font-family: var(--font-body); font-size: var(--size-running); font-style: italic; vertical-align: bottom; padding-bottom: 12pt; }
+}
+@page :right {
+  margin-left: 0.85in;
+  margin-right: 0.65in;
+  @top-right { content: counter(page); font-family: var(--font-body); font-size: var(--size-running); font-variant-numeric: oldstyle-nums; vertical-align: bottom; padding-bottom: 12pt; }
+  @top-center { content: string(chapter-title); font-family: var(--font-body); font-size: var(--size-running); font-style: italic; vertical-align: bottom; padding-bottom: 12pt; }
+}
+
+/* Chapters start on a right-hand page, with the folio at the foot instead of a running head. */
+.chapter { page: chapter; break-before: right; }
+@page chapter:first {
+  @top-left { content: none; }
+  @top-right { content: none; }
+  @top-center { content: none; }
+  @bottom-center { content: counter(page); font-family: var(--font-body); font-size: var(--size-running); font-variant-numeric: oldstyle-nums; vertical-align: top; padding-top: 12pt; }
+}
+
+.title-page { page: cover; }
+.toc-page { page: front; break-before: right; }
+@page cover { @top-left { content: none; } @top-right { content: none; } @top-center { content: none; } }
+@page front { @top-left { content: none; } @top-right { content: none; } @top-center { content: none; } }
+@page :blank { @top-left { content: none; } @top-right { content: none; } @top-center { content: none; } @bottom-center { content: none; } }

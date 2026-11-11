@@ -1,0 +1,21 @@
+name: Stage Play
+version: 1.0.0
+description: Stage play manuscript — Courier 12 pt, character names centered in capitals, stage directions indented in italics, acts on new pages.
+
+page:
+  size: letter
+  margin: 1in 1in 1in 1.5in
+
+# Turns on script markup: a paragraph that starts with a NAME IN CAPITALS is dialogue,
+# (a line in parentheses) is a parenthetical, and a paragraph entirely in parentheses is a stage direction.
+markdown:
+  script: true
+
+variables:
+  draft: ""
+  contact: ""
+
+changelog:
+  - version: 1.0.0
+    date: 2026-11-11
+    note: First release

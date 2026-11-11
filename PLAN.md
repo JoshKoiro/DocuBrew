@@ -3,7 +3,7 @@
 > Markdown + CSS in, print-ready PDF out. A local, browser-based workbench for
 > producing consistently styled SOPs, manuals and books without Word or InDesign.
 
-Status: **Phases 1–5 built** (v0.5.0) · Last updated: 2026-11-10 · Decisions log: [docs/DECISIONS.md](docs/DECISIONS.md)
+Status: **0.9.0 Beta** — Phases 1–5, plus GitHub issues #1 (AI support) and #2 (standard Blends). Next: #3 (MCP server). · Last updated: 2026-11-10 · Decisions log: [docs/DECISIONS.md](docs/DECISIONS.md)
 
 ---
 
@@ -328,6 +328,7 @@ Both Blends extend a shared `typewriter-base` (brand tokens, fonts, base element
 
 ## 10. After Phase 5 — candidate next steps
 
+- **MCP server** (GitHub issue #3): `docubrew mcp` so Claude Desktop / Claude Code can list, write, check, render and export Brews directly.
 - Server mode (bind address + authentication) for use from other machines on the network (§8).
 - Data-driven documents inside the app: pick a record from a data file and preview it, not only in the CLI.
 - Paged.js 2.0 upgrade behind the renderer adapter, when it's released.

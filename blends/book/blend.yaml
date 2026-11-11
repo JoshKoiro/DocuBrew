@@ -1,0 +1,28 @@
+name: Book
+version: 1.0.0
+description: Classic book typography — 6 × 9 in trim, EB Garamond, mirrored margins, running heads, chapters on right-hand pages.
+
+page:
+  size: 6in 9in
+  margin: 0.75in 0.65in 0.85in 0.85in   # top outer bottom inner (left/right pages mirror these in page.css)
+
+markdown:
+  leadIn: 4   # wrap a chapter's first 4 words for small capitals
+
+toc:
+  depth: 1
+  title: Contents
+
+variables:
+  publisher: ""
+
+presets:
+  figure:
+    - { class: fig-full, label: "Full width" }
+    - { class: fig-half, label: "Half, centered" }
+    - { class: fig-small, label: "Small, centered" }
+
+changelog:
+  - version: 1.0.0
+    date: 2026-11-11
+    note: First release

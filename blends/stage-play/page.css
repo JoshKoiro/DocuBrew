@@ -1,0 +1,7 @@
+/* ── Page ── Page number top right ("12."), nothing on the title page. */
+@page {
+  @top-right { content: counter(page) "."; font-family: var(--font); font-size: var(--size); vertical-align: bottom; padding-bottom: 0.25in; }
+}
+.title-page { page: cover; }
+.chapter { page: act; break-before: page; }
+@page cover { @top-right { content: none; } }

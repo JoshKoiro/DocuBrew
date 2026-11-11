@@ -1,0 +1,23 @@
+/* Everything in one typewriter face. Black ribbon with a red half for accents. */
+:root {
+  --font-body: "Courier Prime", "Courier New", Courier, monospace;
+  --font-heading: "Courier Prime", "Courier New", Courier, monospace;
+  --font-mono: "Courier Prime", "Courier New", Courier, monospace;
+  --ink: #1c1c1c;
+  --ink-soft: #4a4a48;
+  --accent: #b3261e;
+  --rule: #1c1c1c;
+  --rule-strong: #1c1c1c;
+  --tint: transparent;
+  --size-body: 11.5pt;
+  --size-small: 11.5pt;
+  --size-tiny: 10pt;
+  --size-h1: 11.5pt;
+  --size-h2: 11.5pt;
+  --size-h3: 11.5pt;
+  --size-display: 11.5pt;
+  --leading: 1.25;
+  --tracking-display: 0;
+  --tracking-heading: 0;
+  --tracking-caps: 0.05em;
+}

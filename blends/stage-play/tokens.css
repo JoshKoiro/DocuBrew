@@ -1,0 +1,9 @@
+/* ── Tokens ── Manuscript conventions: one font, one size, single-spaced. */
+:root {
+  --font: "Courier Prime", "Courier New", Courier, monospace;
+  --size: 12pt;
+  --line: 1.15;
+  --ink: #111;
+  --direction-indent: 2.25in;
+  --parenthetical-indent: 1.5in;
+}

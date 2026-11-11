@@ -44,17 +44,16 @@ export async function loadBrew(dir, { blendDir = path.join(dir, BLEND_DIR) } = {
   // Page setup: Blend defaults, then Brew overrides.
   const page = deepMerge(blend?.page || {}, manifest.page || {});
 
-  // Variables available to Markdown and templates.
-  const vars = deepMerge(blend?.variables || {}, manifest.variables || {});
+  // Variables available to Markdown and templates. Precedence, lowest first:
+  //   Blend defaults (blend.yaml variables)  <  brew.yaml fields (title, author…)  <  brew.yaml variables
+  const fields = {};
+  for (const k of ['title', 'subtitle', 'author', 'revision', 'date']) if (manifest[k] != null && manifest[k] !== '') fields[k] = manifest[k];
+  const base = { title: path.basename(dir), subtitle: '', author: '', revision: '', date: '' };
+  const vars = deepMerge(deepMerge(deepMerge(base, blend?.variables || {}), fields), manifest.variables || {});
   const doc = {
-    title: manifest.title || path.basename(dir),
-    subtitle: manifest.subtitle || '',
-    author: manifest.author || '',
-    revision: manifest.revision ?? '',
-    date: manifest.date ?? '',
     ...vars,
     // keep these addressable as {{ doc.* }} even if a variable shadows them
-    doc: { title: manifest.title || path.basename(dir), subtitle: manifest.subtitle || '', author: manifest.author || '', revision: manifest.revision ?? '', date: manifest.date ?? '' },
+    doc: { title: vars.title, subtitle: vars.subtitle, author: vars.author, revision: vars.revision, date: vars.date, ...fields },
     brew: manifest,
     blend: blend ? { name: blend.name, version: blend.version } : null,
   };

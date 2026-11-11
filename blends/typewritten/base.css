@@ -1,0 +1,19 @@
+/* A typewriter has one size and no italics: emphasis is underlined, headings are capitals. */
+html { font-feature-settings: normal; hyphens: manual; }
+p { text-align: left; }
+h1, h2, h3, h4, h5, h6 { font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; border: 0; padding: 0; }
+h1 { text-decoration: underline; text-underline-offset: 3pt; margin: 0 0 1.5em; }
+h2 { margin: 2em 0 1em; }
+h3 { text-decoration: underline; text-underline-offset: 3pt; font-weight: 400; margin: 1.5em 0 0.5em; }
+em, i { font-style: normal; text-decoration: underline; text-underline-offset: 2pt; }
+strong, b { font-weight: 700; }
+ul { list-style: none; padding-left: 2ch; }
+ul > li::before { content: "-"; display: inline-block; width: 2ch; margin-left: -2ch; }
+blockquote { font-family: var(--font-body); font-size: var(--size-body); border-left: 0; padding-left: 5ch; letter-spacing: 0; }
+hr { border: 0; height: auto; margin: 1.25em 0; overflow: hidden; white-space: nowrap; }
+hr::after { content: "- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"; }
+th { font-size: var(--size-body); text-transform: uppercase; letter-spacing: 0.02em; color: var(--ink); border-bottom: 1pt dashed var(--ink); }
+td { border-bottom: 0.6pt dashed var(--ink-soft); }
+figcaption { font-size: var(--size-tiny); border-top: 0; }
+figcaption::before { color: var(--accent); }
+pre { border: 0.6pt dashed var(--ink-soft); }

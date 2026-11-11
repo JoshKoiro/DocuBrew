@@ -1,0 +1,8 @@
+/* ── Templates ── */
+.play-title-page { height: 8.5in; display: flex; flex-direction: column; }
+.play-title { text-align: center; text-transform: uppercase; text-decoration: underline; margin: 3in 0 1em; }
+.play-subtitle, .play-by, .play-author { text-align: center; margin: 0 0 1em; }
+.play-subtitle { font-style: italic; }
+.play-contact { margin-top: auto; width: 3in; margin-left: auto; white-space: pre-line; }
+.act-opener { text-align: center; break-inside: avoid; margin: 0 0 2em; }
+.act-title { text-transform: uppercase; text-decoration: underline; margin: 0; }

@@ -1,0 +1,16 @@
+/* ── Components ── Script elements (from `markdown: { script: true }`). */
+.dialogue { margin: 0 0 1em; }
+.character { text-align: center; text-transform: uppercase; margin: 0; break-after: avoid; }
+.extension { text-transform: none; }
+.line { margin: 0; orphans: 2; widows: 2; }
+.parenthetical { margin: 0 0 0 var(--parenthetical-indent); font-style: italic; break-after: avoid; }
+.stage-direction { margin: 0 0 1em var(--direction-indent); font-style: italic; }
+
+/* Cast list:  ::: cast  (a list of "NAME — description") */
+.cast ul { list-style: none; padding: 0; margin: 0; }
+.cast li { margin: 0 0 0.6em; }
+.cast strong { font-weight: 400; text-transform: uppercase; }
+.cast .block-title { text-align: center; text-transform: uppercase; text-decoration: underline; margin: 0 0 2em; }
+
+.page-break { break-after: page; }
+.end-of-play { text-align: center; margin-top: 2em; }

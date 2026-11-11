@@ -271,6 +271,10 @@ export function createPreview(canvas, { onRendered, onError, onBusy, onJump, onD
     clearSelection: () => select(null),
     liveStyle,
     idExists: (id) => Boolean(doc(current)?.getElementById(id)),
+    /** Content wider or taller than the page, from the rendered preview. */
+    overflow() {
+      try { return current?.contentWindow?.__docubrewOverflow?.() || []; } catch { return []; }
+    },
     /** Instantly reflect an id/class change on the selected element (the re-render makes it permanent). */
     tagSelected({ id, addClasses = [], removeClasses = [] }) {
       if (!selectedEl) return;

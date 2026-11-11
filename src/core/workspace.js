@@ -37,6 +37,8 @@ export async function ensureWorkspace(ws) {
   }
 
   if (fresh) await restoreSamples(ws);
+  // AGENTS.md / CLAUDE.md for AI assistants (kept current unless edited; see context.js)
+  try { const { writeWorkspaceGuide } = await import('./context.js'); await writeWorkspaceGuide(ws); } catch {}
   return { fresh };
 }
 
@@ -89,7 +91,7 @@ export async function adoptBrewBlend(ws, brewDir) {
   const manifest = YAML.parse((await fs.readFile(path.join(dest, 'blend.yaml'), 'utf8'))) || {};
   delete manifest.flattenedFrom;
   manifest.description = manifest.description || `Added from ${path.basename(brewDir)}`;
-  await fs.writeFile(path.join(dest, 'blend.yaml'), YAML.stringify(manifest));
+  await fs.writeFile(path.join(dest, 'blend.yaml'), YAML.stringify(manifest, { lineWidth: 0 }));
   await attachBlend(ws, brewDir, id);
   return describeBlend(ws, id);
 }
@@ -104,7 +106,7 @@ export async function createBlend(ws, { name, extends: parent, description = '' 
   await fs.mkdir(path.join(dir, 'templates'), { recursive: true });
   const manifest = { name: name.trim(), version: '0.1.0', ...(parent ? { extends: parent } : {}), description };
   if (!parent) manifest.page = { size: 'letter', margin: '0.8in' };
-  await fs.writeFile(path.join(dir, 'blend.yaml'), YAML.stringify(manifest));
+  await fs.writeFile(path.join(dir, 'blend.yaml'), YAML.stringify(manifest, { lineWidth: 0 }));
   const notes = {
     tokens: 'Global variables: colors, fonts, type scale, spacing.',
     base: 'Plain elements as Markdown produces them: headings, paragraphs, lists, tables.',
@@ -131,7 +133,7 @@ export async function releaseBlend(ws, id, { bump = 'patch', note = '' } = {}) {
   const log = doc.get('changelog');
   if (log && YAML.isSeq(log)) log.items.unshift(entry);
   else doc.set('changelog', doc.createNode([entry.toJSON()]));
-  await fs.writeFile(file, doc.toString());
+  await fs.writeFile(file, doc.toString({ lineWidth: 0 }));
   return { id, version };
 }
 
@@ -173,7 +175,7 @@ export async function attachBlend(ws, brewDir, blendId) {
   const file = path.join(brewDir, BREW_FILE);
   const doc = YAML.parseDocument(await fs.readFile(file, 'utf8'));
   doc.set('blend', provenance);
-  await fs.writeFile(file, doc.toString());
+  await fs.writeFile(file, doc.toString({ lineWidth: 0 }));
   return provenance;
 }
 
@@ -197,7 +199,7 @@ export async function createBrew(ws, { title, folder, blend }) {
     date: new Date().toISOString().slice(0, 10),
     variables: {},
   };
-  await fs.writeFile(path.join(dir, BREW_FILE), YAML.stringify(manifest));
+  await fs.writeFile(path.join(dir, BREW_FILE), YAML.stringify(manifest, { lineWidth: 0 }));
   await fs.writeFile(
     path.join(dir, 'content', '01-introduction.md'),
     `---\ntitle: Introduction\n---\n\nStart writing here. Each Markdown file in \`content/\` is a chapter, in filename order.\n`

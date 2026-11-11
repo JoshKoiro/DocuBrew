@@ -49,6 +49,8 @@ export const api = {
     return data;
   },
   adoptBlend: () => request('POST', '/api/blend/adopt'),
+  check: () => request('GET', '/api/check'),
+  context: (content = true) => request('GET', `/api/context?content=${content ? 1 : 0}`),
   allBlends: () => request('GET', '/api/blends?all=1'),
   blendStatus: () => request('GET', '/api/blend/status'),
   blendDiff: () => request('GET', '/api/blend/diff'),

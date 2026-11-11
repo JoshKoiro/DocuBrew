@@ -4,6 +4,32 @@ Short records of decisions that shape DocuBrew. Newest first. Each entry: contex
 
 ---
 
+## D-030 · DocuBrew writes YAML without line folding
+**Date:** 2026-11-11
+**Context:** The YAML library folds lines at 80 characters by default, so recording the Blend in brew.yaml re-wrapped long titles.
+**Decision:** Every YAML write uses `lineWidth: 0`. Files keep the line breaks their author chose.
+
+## D-029 · Variable precedence: Blend defaults < brew.yaml fields < brew.yaml variables
+**Date:** 2026-11-11
+**Context:** A Blend default `author: ""` was overriding `author:` in brew.yaml.
+**Decision:** Blend `variables` are defaults only; brew.yaml's own fields (title, author …) and `variables` always win; CLI `--set`/`--data` win over all.
+
+## D-028 · AI support is files and checks, not a built-in model
+**Date:** 2026-11-11
+**Context:** GitHub issue #1. Options were AI-ready files, an MCP server, or a chat panel calling an API.
+**Decision:** Ship what works with any assistant and needs no API key: the AI guide (docs/AI-GUIDE.md, written into each workspace as AGENTS.md + CLAUDE.md and kept current unless edited), `docubrew check` (static + `--render` overflow, `--json`), and `docubrew context` / **Copy AI context**. The MCP server is issue #3.
+**Consequences:** An assistant can learn the formats, write files, and verify its own work with one command. Blend introspection (classes, tokens, presets, template fields) is shared by check and context.
+
+## D-027 · Lead-ins instead of ::first-line
+**Date:** 2026-11-11
+**Context:** Paged.js drops `::first-line` rules, so books couldn't set the opening line in small capitals.
+**Decision:** The renderer gives each chapter's first paragraph class `chapter-first`; `markdown.leadIn: N` in a Blend wraps the first N words in `.lead-in`.
+
+## D-026 · Script markup is opt-in per Blend
+**Date:** 2026-11-11
+**Decision:** Fountain-style dialogue (NAME IN CAPITALS paragraphs → `.dialogue`, parenthesised lines → `.parenthetical`, parenthesised paragraphs → `.stage-direction`) only applies when a Blend sets `markdown: { script: true }` (Stage Play does). brew.yaml's `markdown:` can override.
+**Consequences:** Ordinary documents never have capitalised lines turned into dialogue.
+
 ## D-025 · Titles may use variables
 **Date:** 2026-11-11
 **Decision:** `title` and `subtitle` in brew.yaml may contain `{{ variable }}` placeholders, filled after any CLI overrides.

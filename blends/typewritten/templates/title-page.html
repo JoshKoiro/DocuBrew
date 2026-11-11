@@ -1,0 +1,11 @@
+<header class="tw-head">
+  <h1 class="tw-title">{{ title }}</h1>
+  {{#if subtitle}}<p>{{ subtitle }}</p>{{/if}}
+  <table class="tw-memo">
+    {{#if to}}<tr><th>To:</th><td>{{ to }}</td></tr>{{/if}}
+    {{#if from}}<tr><th>From:</th><td>{{ from }}</td></tr>{{else}}{{#if author}}<tr><th>From:</th><td>{{ author }}</td></tr>{{/if}}{{/if}}
+    {{#if date}}<tr><th>Date:</th><td>{{ date }}</td></tr>{{/if}}
+    {{#if subject}}<tr><th>Re:</th><td>{{ subject }}</td></tr>{{/if}}
+  </table>
+  <p class="tw-rule" aria-hidden="true"></p>
+</header>

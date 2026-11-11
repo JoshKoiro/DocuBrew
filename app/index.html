@@ -89,6 +89,9 @@
           <span class="meta" id="meta"></span>
         </div>
         <div class="toolbar-right zoom" role="group" aria-label="Zoom">
+          <button class="btn btn-quiet needs-brew brew-only" id="btn-check" title="Check this Brew for problems: missing images, unknown variables, unstyled classes, content off the page" disabled>Check</button>
+          <button class="btn btn-quiet needs-brew brew-only" id="btn-ai" title="Copy everything an AI assistant needs to write for this Brew — paste it into your chat" disabled>Copy AI context</button>
+          <span class="bar-sep" aria-hidden="true"></span>
           <button class="btn btn-quiet toggle needs-brew" id="btn-inspect" title="Inspect: click anything in the preview to style it (I, Esc to stop)" disabled>Inspect</button>
           <span class="bar-sep" aria-hidden="true"></span>
           <button class="btn btn-quiet" id="zoom-out" aria-label="Zoom out">−</button>
@@ -262,6 +265,22 @@
       <footer class="dialog-foot">
         <span class="hint">Recorded in blend.yaml's changelog.</span>
         <button type="submit" class="btn btn-primary">Release</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Check results -->
+  <dialog class="dialog dialog-wide" id="dlg-check">
+    <form method="dialog" class="dialog-form">
+      <header class="dialog-head">
+        <h2 id="check-title">Check</h2>
+        <button class="btn btn-quiet" value="cancel">Close</button>
+      </header>
+      <p class="dialog-note" id="check-note"></p>
+      <ul class="check-list" id="check-list"></ul>
+      <footer class="dialog-foot">
+        <span class="hint">Click a problem to open its line. The same check runs from the command line: docubrew check.</span>
+        <button type="button" class="btn" id="check-again">Check again</button>
       </footer>
     </form>
   </dialog>

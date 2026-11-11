@@ -14,6 +14,8 @@ import { WebSocketServer } from 'ws';
 import { watch } from 'chokidar';
 import { APP_ROOT, ensureWorkspace, listBrews, listLibrary, createBrew, libraryDir, attachBlend, restoreSamples, createBlend, releaseBlend, describeBlend, adoptBrewBlend } from '../core/workspace.js';
 import { packBrew, unpackBrew, BREW_EXT } from '../core/brewfile.js';
+import { checkBrew } from '../core/check.js';
+import { buildContext } from '../core/context.js';
 import { isBrew, describeBrew, DIST_DIR, BLEND_DIR } from '../core/brew.js';
 import { renderBrew, wrapLayer } from '../core/render.js';
 import { flattenBlend, resolveChain } from '../core/blend.js';
@@ -159,6 +161,11 @@ export async function startServer({ workspace, port = 4747, host = '127.0.0.1', 
       if (!String(body.path || '').toLowerCase().endsWith(BREW_EXT)) throw new HttpError(400, 'Choose a .brew file.');
       return importBrew(await fs.readFile(body.path), null);
     },
+    // AI support
+    'GET /api/check': async () => checkBrew(requireBrew(), { libraryDir: library }),
+    'GET /api/context': async (_b, url) => ({
+      text: await buildContext(requireBrew(), { libraryDir: library, content: url.searchParams.get('content') !== '0', guide: url.searchParams.get('guide') !== '0' }),
+    }),
     'POST /api/blend/adopt': async () => {
       const b = await adoptBrewBlend(workspace, requireBrew());
       return { blend: b, status: await blendStatus(library, state.brewDir) };

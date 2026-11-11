@@ -25,7 +25,7 @@ const CALLOUTS = {
 
 // ─── Markdown ────────────────────────────────────────────────────────────────
 
-export function createMarkdown() {
+export function createMarkdown({ script = false, leadIn = 0 } = {}) {
   const md = new MarkdownIt({ html: true, linkify: true, typographer: true });
 
   md.use(markdownItAttrs, { allowedAttributes: ['id', 'class', 'style', 'width', 'height', /^data-.*$/] });
@@ -55,6 +55,8 @@ export function createMarkdown() {
   });
 
   md.core.ruler.push('docubrew_figures', figureRule(md));
+  if (script) md.core.ruler.push('docubrew_script', scriptRule(md));
+  md.core.ruler.push('docubrew_chapter_first', chapterFirstRule(Number(leadIn) || 0));
   md.core.ruler.push('docubrew_heading_ids', headingIdRule);
   md.core.ruler.push('docubrew_source_lines', sourceLineRule);
 
@@ -88,6 +90,74 @@ function sourceLineRule(state) {
     tok.attrSet('data-source-line', String(tok.map[0] + 1 + offset));
     tok.attrSet('data-source-end', String(tok.map[1] + offset)); // last line of the block, 1-based
   }
+}
+
+// Script markup (plays, screenplays), switched on by a Blend with `markdown: { script: true }`.
+// Follows the Fountain convention:
+//   HAMLET                     a paragraph whose first line is a name in capitals → dialogue
+//   (aside)                    a line in parentheses inside dialogue → parenthetical
+//   To be, or not to be.
+//
+//   (He draws his dagger.)     a paragraph entirely in parentheses → stage direction
+const CUE = /^([A-Z][A-Z0-9 .'’&-]*[A-Z0-9.'’])(\s*\([^)]*\))?$/;
+function scriptRule(md) {
+  return (state) => {
+    const t = state.tokens;
+    for (let i = 0; i < t.length - 2; i++) {
+      if (t[i].type !== 'paragraph_open' || t[i + 1].type !== 'inline' || t[i + 2].type !== 'paragraph_close') continue;
+      const text = t[i + 1].content.trim();
+      if (/^\([\s\S]*\)$/.test(text)) {
+        t[i].attrJoin('class', 'stage-direction');
+        continue;
+      }
+      const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+      const m = CUE.exec(lines[0]);
+      if (!m || lines.length < 2 || (m[1].match(/[A-Z]/g) || []).length < 2) continue;
+      const env = state.env;
+      const off = env?.lineOffset || 0;
+      const lineAttrs = t[i].map ? { 'data-source-line': t[i].map[0] + 1 + off, 'data-source-end': t[i].map[1] + off } : {};
+      const attrs = [...(t[i].attrs || []), ...Object.entries(lineAttrs)].map(([k, v]) => ` ${k}="${escapeHtml(v)}"`).join('');
+      let html = `<div class="dialogue"${attrs}>\n<p class="character">${escapeHtml(m[1])}${m[2] ? ` <span class="extension">${escapeHtml(m[2].trim())}</span>` : ''}</p>\n`;
+      let speech = [];
+      const flush = () => {
+        if (speech.length) html += `<p class="line">${md.renderInline(speech.join('\n'), env)}</p>\n`;
+        speech = [];
+      };
+      for (const line of lines.slice(1)) {
+        if (/^\(.*\)$/.test(line)) { flush(); html += `<p class="parenthetical">${md.renderInline(line, env)}</p>\n`; }
+        else speech.push(line);
+      }
+      flush();
+      html += '</div>\n';
+      const block = new state.Token('html_block', '', 0);
+      block.content = html;
+      block.map = t[i].map;
+      t.splice(i, 3, block);
+    }
+  };
+}
+
+// Mark each chapter's first top-level paragraph with class "chapter-first" and, if the Blend asks
+// (`markdown: { leadIn: 4 }`), wrap its first words in <span class="lead-in"> — the book convention of
+// setting the opening words in small capitals. (Paged.js drops ::first-line rules, so CSS can't do it.)
+function chapterFirstRule(leadIn) {
+  return (state) => {
+    const t = state.tokens;
+    const i = t.findIndex((tok) => tok.type === 'paragraph_open' && tok.level === 0 && !tok.attrGet('class')?.includes('stage-direction'));
+    if (i < 0 || t[i].tag !== 'p') return;
+    t[i].attrJoin('class', 'chapter-first');
+    if (!leadIn) return;
+    const kids = t[i + 1].children || [];
+    const first = kids.findIndex((k) => k.type === 'text' && k.content.trim());
+    if (first !== 0) return; // starts with emphasis, a link or an image: leave it alone
+    const m = new RegExp(`^(\\s*(?:\\S+\\s+){0,${leadIn - 1}}\\S+)([\\s\\S]*)$`).exec(kids[0].content);
+    if (!m) return;
+    const open = new state.Token('html_inline', '', 0); open.content = '<span class="lead-in">';
+    const words = new state.Token('text', '', 0); words.content = m[1];
+    const close = new state.Token('html_inline', '', 0); close.content = '</span>';
+    const rest = new state.Token('text', '', 0); rest.content = m[2];
+    kids.splice(0, 1, open, words, close, rest);
+  };
 }
 
 // Give every heading an id (for the table of contents and links) and collect it in env.headings.
@@ -213,6 +283,7 @@ export async function renderBrew(dir, opts = {}) {
   // The Blend Editor renders a Brew's content with a live Library Blend instead of the Brew's copy.
   const blendDir = opts.blendDir || path.join(dir, BLEND_DIR);
   const brew = await loadBrew(dir, { blendDir });
+  const mdOptions = { ...(brew.blend?.markdown || {}), ...(brew.manifest.markdown || {}) };
   // Variable overrides (CLI --set / --data): merged over brew.yaml's variables.
   if (opts.vars && Object.keys(opts.vars).length) {
     brew.vars = deepMerge(brew.vars, opts.vars);
@@ -223,7 +294,7 @@ export async function renderBrew(dir, opts = {}) {
     brew.vars[k] = expandText(brew.vars[k], brew.vars);
     brew.vars.doc[k] = expandText(brew.vars.doc[k], brew.vars);
   }
-  const md = createMarkdown();
+  const md = createMarkdown({ script: Boolean(mdOptions.script), leadIn: mdOptions.leadIn });
   const usedIds = new Set();
   const tocEntries = [];
 
