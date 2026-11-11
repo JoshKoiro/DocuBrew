@@ -4,6 +4,26 @@ Short records of decisions that shape DocuBrew. Newest first. Each entry: contex
 
 ---
 
+## D-022 · Bundled Blends are never overwritten automatically; `blend reset` restores them
+**Date:** 2026-11-11
+**Decision:** New DocuBrew releases don't change a workspace's Library. `docubrew blend reset <id>` replaces a Library Blend with the bundled version; Brews then see the normal update prompt.
+**Consequences:** Library edits are safe from upgrades. Picking up improvements to bundled Blends is an explicit step.
+
+## D-021 · Releases are explicit; out-of-date detection is by content hash
+**Date:** 2026-11-11
+**Context:** With autosave, bumping a version on every save would be noise.
+**Decision:** Brews compare content hashes (`blend.hash`, and `blend.copyHash` for hand edits to the copy), so any Library change is detected. **Release version…** is how a change gets a version number and a changelog entry (patch / minor / major).
+**Consequences:** The update banner can say "changed since 1.0.0" before a release, and "1.1.0 is available" after.
+
+## D-020 · Blend Editor previews a live flattened copy
+**Date:** 2026-11-11
+**Decision:** In the Blend Editor the server flattens the Blend (and everything it extends) into a temp folder on every change, and renders the specimen or a chosen Brew's content with it. Every layer is listed; missing layers are created on first save. The inspector writes "All …" rules to a chosen layer's managed section — there's no "this element" in a Blend.
+**Consequences:** Editing a base Blend live-updates every Blend built on it in the preview.
+
+## D-019 · Table of contents from headings, page numbers from CSS
+**Date:** 2026-11-11
+**Decision:** `toc:` in brew.yaml (or blend.yaml) renders a contents section from chapter titles and headings; every heading gets an id. Page numbers come from `target-counter(attr(href), page)` in the Blend's CSS. A Blend may supply `templates/toc.html`.
+
 ## D-018 · Attributes on lists and tables go on their own line after a blank line
 **Date:** 2026-11-10
 **Context:** markdown-it-attrs reads `{.spec}` directly under a table as an extra table row.

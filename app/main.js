@@ -14,7 +14,10 @@ const store = {
 
 const state = {
   workspace: '',
-  brew: null,
+  mode: 'brew',     // 'brew' | 'blend' (Blend Editor)
+  brew: null,       // what's open: a Brew, or in Blend mode the Library Blend (both have path + title)
+  lastBrew: null,   // for "Back to document"
+  brews: [],
   pages: 0,
   ms: 0,
   files: null,
@@ -99,6 +102,7 @@ const inspector = createInspector({
   onOpenFile: (path) => openInEditor(path),
   onClose: () => { preview.clearSelection(); },
   toast: (m, e) => toast(m, e),
+  getMode: () => state.mode,
 });
 
 function setInspecting(on) {
@@ -129,6 +133,7 @@ function syncPreview() {
 const altFromPath = (p) => p.split('/').pop().replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
 
 async function insertImages(files, file, afterLine) {
+  if (state.mode !== 'brew') return toast('Images go into a Brew. Open a document to add them.', true);
   const images = files.filter((f) => /^image\//.test(f.type) || /\.(png|jpe?g|gif|webp|svg|avif)$/i.test(f.name));
   if (!images.length) return toast('Only image files can be dropped.', true);
   if (!/\.md$/i.test(file)) return toast('Drop images into a chapter page.', true);
@@ -159,14 +164,16 @@ window.addEventListener('drop', (e) => e.preventDefault());
 // ─── Sidebar: files ───
 async function loadFiles() {
   if (!state.brew) { state.files = null; renderFiles(); return; }
+  state.files = null;
   state.files = await api.files();
   renderFiles();
 }
 
-function fileItem(path, label = path) {
+function fileItem({ path, label = path, readOnly, missing }) {
   const active = session.file?.path === path;
-  return el('li', { class: active ? 'is-active' : '', title: path, onclick: () => openInEditor(path) },
+  return el('li', { class: `${active ? 'is-active' : ''} ${missing ? 'is-missing' : ''}`, title: readOnly ? `${path} (read-only)` : missing ? `${path} — not in this Blend yet; opening it starts one` : path, onclick: () => openInEditor(path) },
     el('span', { class: 'file-name' }, label),
+    missing ? el('span', { class: 'file-note' }, 'empty') : null,
     state.dirty.has(path) ? el('span', { class: 'file-dirty', title: 'Unsaved' }) : null);
 }
 
@@ -174,12 +181,20 @@ function renderFiles() {
   const f = state.files;
   $('#files').hidden = !f;
   if (!f) return;
+  const open = f.groups.filter((g) => !g.collapsed);
+  const folded = f.groups.find((g) => g.collapsed);
   $('#file-list').replaceChildren(
-    ...f.document.map((p) => fileItem(p)),
-    el('li', { class: 'file-group' }, el('span', { class: 'label' }, 'Chapters')),
-    ...(f.chapters.length ? f.chapters.map((p) => fileItem(p, p.replace(/^content\//, ''))) : [el('li', { class: 'list-empty' }, 'No chapters yet.')])
+    ...open.flatMap((g) => [
+      ...(g.label ? [el('li', { class: 'file-group' }, el('span', { class: 'label' }, g.label))] : []),
+      ...(g.files.length ? g.files.map(fileItem) : [el('li', { class: 'list-empty' }, g.id === 'chapters' ? 'No chapters yet.' : 'None yet.')]),
+    ])
   );
-  $('#blend-file-list').replaceChildren(...f.blend.map((p) => fileItem(p, p.replace(/^blend\//, ''))));
+  $('#blend-files').hidden = !folded;
+  if (folded) {
+    $('#blend-files summary').textContent = folded.label;
+    $('#blend-file-list').replaceChildren(...folded.files.map(fileItem));
+  }
+  $('#btn-add-chapter').hidden = state.mode !== 'brew' || !$('#new-chapter').hidden;
 }
 
 async function openInEditor(path) {
@@ -208,7 +223,7 @@ $('#new-chapter').chapterTitle.addEventListener('keydown', (e) => { if (e.key ==
 $('#new-chapter').chapterTitle.addEventListener('blur', () => setTimeout(closeNewChapter, 150));
 function closeNewChapter() {
   $('#new-chapter').hidden = true;
-  $('#btn-add-chapter').hidden = false;
+  $('#btn-add-chapter').hidden = state.mode !== 'brew';
 }
 
 // ─── Editor visibility, sync toggle, resizing ───
@@ -269,7 +284,7 @@ $('#btn-sync').onclick = () => {
 function renderMeta() {
   const b = state.brew;
   if (!b) { $('#meta').textContent = ''; return; }
-  const blend = b.blend ? `${b.blend.source} ${b.blend.version}` : 'no blend';
+  const blend = state.mode === 'blend' ? `${b.id} ${b.version}` : b.blend ? `${b.blend.source} ${b.blend.version}` : 'no blend';
   renderZoom();
   if (!state.pages) { $('#meta').textContent = `Rendering…  ·  ${blend}`; return; }
   $('#meta').replaceChildren(
@@ -280,17 +295,27 @@ function renderMeta() {
 
 function renderBrewState() {
   const b = state.brew;
-  $('#doc-title').textContent = b ? b.title : 'No Brew open';
-  document.title = b ? `${b.title} — DocuBrew` : 'DocuBrew';
+  const blendMode = state.mode === 'blend';
+  $('#doc-title').textContent = b ? (blendMode ? `${b.name} ${b.version}` : b.title) : 'No Brew open';
+  document.title = b ? `${blendMode ? `${b.name} (Blend)` : b.title} — DocuBrew` : 'DocuBrew';
+  document.body.classList.toggle('is-blend-mode', blendMode);
+  $('#mode-tag').hidden = !blendMode;
+  $('#btn-back').hidden = !blendMode || !state.lastBrew;
+  document.querySelectorAll('.brew-only').forEach((n) => (n.hidden = blendMode));
+  document.querySelectorAll('.blend-only').forEach((n) => (n.hidden = !blendMode));
   $('#empty').hidden = Boolean(b);
   document.querySelectorAll('.needs-brew').forEach((btn) => (btn.disabled = !b));
-  document.querySelectorAll('#brew-list li[data-path]').forEach((li) => li.classList.toggle('is-active', li.dataset.path === b?.path));
+  document.querySelectorAll('#brew-list li[data-path]').forEach((li) => li.classList.toggle('is-active', !blendMode && li.dataset.path === b?.path));
+  document.querySelectorAll('#blend-list li[data-id]').forEach((li) => li.classList.toggle('is-active', blendMode && li.dataset.id === b?.id));
+  if (blendMode) renderPreviewWith();
+  if (blendMode) $('#blend-banner').hidden = true;
   renderMeta();
   renderLayout();
 }
 
 async function loadSidebar() {
-  const [brews, blends] = await Promise.all([api.brews(), api.blends()]);
+  const [brews, blends] = await Promise.all([api.brews(), api.allBlends()]);
+  state.brews = brews;
   $('#brew-list').replaceChildren(
     ...(brews.length
       ? brews.map((b) =>
@@ -300,9 +325,9 @@ async function loadSidebar() {
       : [el('li', { class: 'list-empty' }, 'No Brews in the workspace yet.')])
   );
   $('#blend-list').replaceChildren(
-    ...blends.map((b) => el('li', { title: b.description || '' },
-      el('span', { class: 'list-title' }, b.name),
-      el('span', { class: 'list-sub' }, `${b.id} · ${b.version}`)))
+    ...blends.map((b) => el('li', { 'data-id': b.id, title: `${b.description || b.name}\nClick to open in the Blend Editor`, onclick: () => openBlend(b.id) },
+      el('span', { class: 'list-title' }, b.name, b.abstract ? el('span', { class: 'list-tag' }, 'base') : null),
+      el('span', { class: 'list-sub' }, `${b.id} · ${b.version}${b.extends ? ` · builds on ${b.extends}` : ''}`)))
   );
   renderBrewState();
 }
@@ -314,8 +339,16 @@ async function openBrew(path) {
   await setBrew(info);
 }
 
-async function setBrew(info) {
-  const changed = info?.path !== state.brew?.path;
+async function openBlend(id, previewWith) {
+  await session.flush();
+  const info = await api.openBlend(id, previewWith);
+  await setBrew(info, 'blend');
+}
+
+async function setBrew(info, mode = 'brew') {
+  const changed = info?.path !== state.brew?.path || mode !== state.mode;
+  if (mode === 'brew' && info) { state.lastBrew = info.path; store.set('docubrew.lastBrew', info.path); }
+  state.mode = mode;
   state.brew = info;
   if (changed) {
     state.pages = 0;
@@ -332,20 +365,21 @@ async function setBrew(info) {
     await loadFiles();
     if (state.editorOn) await openDefaultFile();
   }
+  if (mode === 'brew') checkBlendStatus();
 }
 
 async function openDefaultFile() {
   const remembered = store.get(`docubrew.file:${state.brew?.path}`, null);
   const f = state.files;
   if (!f) return;
-  const all = [...f.document, ...f.chapters, ...f.blend];
-  const target = all.includes(remembered) ? remembered : f.chapters[0] || f.document[0];
+  const all = f.groups.flatMap((g) => g.files.map((x) => x.path));
+  const target = all.includes(remembered) ? remembered : f.defaultFile;
   if (target) await openInEditor(target);
 }
 
 let exporting = false;
 async function exportPdf() {
-  if (!state.brew || exporting) return;
+  if (!state.brew || exporting || state.mode !== 'brew') return;
   exporting = true;
   const btn = $('#btn-export');
   btn.classList.add('is-busy');
@@ -425,6 +459,173 @@ function toggleTheme() {
   preview.themeChanged();
 }
 
+// ─── Blend copy vs. Library (brew mode) ───
+async function checkBlendStatus() {
+  const banner = $('#blend-banner');
+  banner.hidden = true;
+  if (state.mode !== 'brew' || !state.brew) return;
+  let s;
+  try { s = await api.blendStatus(); } catch { return; }
+  state.blendStatus = s;
+  if (s.state === 'missing') {
+    $('#blend-banner-text').textContent = `This Brew's Blend "${s.source}" isn't in your Blend Library. The Brew still renders from its own copy.`;
+    banner.querySelectorAll('.banner-actions .btn:not(#blend-dismiss)').forEach((b) => (b.hidden = true));
+  } else if (s.state === 'out-of-date') {
+    const key = `docubrew.dismiss:${state.brew.path}`;
+    if (store.get(key, null) === s.libraryHash) return;
+    const what = s.version === s.libraryVersion ? `${s.name} has changed in your Blend Library since this Brew copied it.` : `${s.name} ${s.libraryVersion} is in your Blend Library — this Brew uses ${s.version}.`;
+    $('#blend-banner-text').textContent = `${what}${s.locallyModified ? ' This Brew\'s copy was also edited by hand; updating replaces those edits.' : ''}`;
+    banner.querySelectorAll('.banner-actions .btn').forEach((b) => (b.hidden = false));
+  } else return;
+  if (state.mode === 'brew') banner.hidden = false;
+}
+
+async function updateBlend() {
+  try {
+    await session.flush();
+    const s = await api.blendUpdate();
+    $('#blend-banner').hidden = true;
+    $('#dlg-diff').close();
+    toast(`Updated to ${s.name} ${s.libraryVersion}. Your content and overrides.css were not changed.`);
+    const info = await api.state();
+    state.brew = info.brew;
+    renderBrewState();
+    loadFiles();
+  } catch (err) { toast(err.message, true); }
+}
+
+async function reviewBlend() {
+  const dlg = $('#dlg-diff');
+  const s = state.blendStatus || {};
+  $('#diff-note').replaceChildren(
+    `Updating copies ${s.name || ''} ${s.libraryVersion || ''} from the Library into this Brew's blend/ folder.`,
+    ...(s.locallyModified ? [' ', el('strong', {}, 'The copy was edited by hand — those edits are the red lines below.')] : [])
+  );
+  $('#diff-body').replaceChildren(el('p', { class: 'diff-empty' }, 'Comparing…'));
+  dlg.showModal();
+  try {
+    const d = await api.blendDiff();
+    $('#diff-body').replaceChildren(
+      ...(d.files.length
+        ? d.files.map((f, i) => el('details', { class: 'diff-file', open: i < 3 },
+            el('summary', {}, el('span', { class: 'diff-status' }, f.status), f.path),
+            f.binary ? el('p', { class: 'diff-empty' }, 'Binary file (e.g. a font) — contents differ.') : patchView(f.patch)))
+        : [el('p', { class: 'diff-empty' }, 'No differences in the files — only the recorded version differs.')])
+    );
+  } catch (err) {
+    $('#diff-body').replaceChildren(el('p', { class: 'diff-empty' }, err.message));
+  }
+}
+
+function patchView(patch) {
+  const lines = patch.split('\n').slice(4); // skip the ===/---/+++ header
+  return el('pre', {}, ...lines.filter((l) => l !== '\\ No newline at end of file').map((l) => el('span', {
+    class: `diff-line ${l.startsWith('+') ? 'diff-add' : l.startsWith('-') ? 'diff-del' : l.startsWith('@@') ? 'diff-hunk' : ''}`,
+  }, l || ' ')));
+}
+
+$('#blend-review').onclick = reviewBlend;
+$('#blend-update').onclick = updateBlend;
+$('#diff-update').onclick = updateBlend;
+$('#blend-dismiss').onclick = () => {
+  if (state.blendStatus?.libraryHash) store.set(`docubrew.dismiss:${state.brew.path}`, state.blendStatus.libraryHash);
+  $('#blend-banner').hidden = true;
+};
+
+// ─── Blend Editor ───
+function renderPreviewWith() {
+  const sel = $('#preview-with');
+  const current = state.brew?.previewWith || 'specimen';
+  sel.replaceChildren(
+    el('option', { value: 'specimen' }, 'Specimen (every element)'),
+    ...state.brews.map((b) => el('option', { value: b.path }, b.title))
+  );
+  sel.value = current;
+}
+$('#preview-with').onchange = async (e) => {
+  try { await setBrew(await api.previewWith(e.target.value), 'blend'); preview.refresh(); } catch (err) { toast(err.message, true); }
+};
+
+async function refreshBlendInfo() {
+  const info = await api.state();
+  if (info.mode === 'blend') { state.brew = info.blend; renderBrewState(); }
+}
+
+$('#btn-back').onclick = () => state.lastBrew && openBrew(state.lastBrew).catch((e) => toast(e.message, true));
+
+// New Blend
+const newBlendForm = $('#new-blend-form');
+$('#btn-new-blend').onclick = async () => {
+  newBlendForm.reset();
+  $('#new-blend-error').hidden = true;
+  const blends = await api.allBlends();
+  newBlendForm.elements.namedItem('blendExtends').replaceChildren(
+    ...blends.map((b) => el('option', { value: b.id, selected: b.abstract }, `${b.name} (${b.id})`)),
+    el('option', { value: '' }, 'Nothing — start from scratch')
+  );
+  $('#dlg-new-blend').showModal();
+  newBlendForm.elements.namedItem('blendName').focus();
+};
+$('#dlg-new-blend [data-close]').onclick = () => $('#dlg-new-blend').close();
+newBlendForm.onsubmit = async (e) => {
+  e.preventDefault();
+  const f = newBlendForm.elements;
+  try {
+    const info = await api.createBlend({ name: f.namedItem('blendName').value, extends: f.namedItem('blendExtends').value || null, description: f.namedItem('blendDescription').value });
+    $('#dlg-new-blend').close();
+    await loadSidebar();
+    await setBrew(info, 'blend');
+  } catch (err) {
+    $('#new-blend-error').textContent = err.message;
+    $('#new-blend-error').hidden = false;
+  }
+};
+
+// Release version
+const releaseForm = $('#release-form');
+$('#btn-release').onclick = () => {
+  const v = (state.brew?.version || '0.0.0').split('.').map((n) => parseInt(n, 10) || 0);
+  const options = [
+    ['patch', `${v[0]}.${v[1]}.${v[2] + 1}`, 'Fix — small corrections that don\'t change the look'],
+    ['minor', `${v[0]}.${v[1] + 1}.0`, 'Change — adjusts the look; documents may re-flow'],
+    ['major', `${v[0] + 1}.0.0`, 'Redesign — documents will look different'],
+  ];
+  $('#release-picks').replaceChildren(...options.map(([bump, version, desc], i) =>
+    el('label', { class: 'blend-pick' },
+      el('input', { type: 'radio', name: 'bump', value: bump, checked: i === 1 }),
+      el('span', { class: 'blend-pick-name' }, version),
+      el('span', { class: 'blend-pick-desc' }, desc))));
+  releaseForm.elements.namedItem('releaseNote').value = '';
+  $('#release-error').hidden = true;
+  $('#dlg-release').showModal();
+};
+$('#dlg-release [data-close]').onclick = () => $('#dlg-release').close();
+releaseForm.onsubmit = async (e) => {
+  e.preventDefault();
+  try {
+    await session.flush();
+    const bump = releaseForm.querySelector('input[name="bump"]:checked')?.value || 'minor';
+    const r = await api.releaseBlend({ bump, note: releaseForm.elements.namedItem('releaseNote').value });
+    $('#dlg-release').close();
+    state.brew = r.blend;
+    renderBrewState();
+    loadSidebar();
+    toast(`Released ${r.blend.name} ${r.version}. Brews using it will offer the update.`);
+  } catch (err) {
+    $('#release-error').textContent = err.message;
+    $('#release-error').hidden = false;
+  }
+};
+
+// Samples
+$('#btn-samples').onclick = async () => {
+  try {
+    const added = await api.samples();
+    await loadSidebar();
+    toast(added.length ? `Added ${added.map((b) => b.title).join(', ')}.` : 'All sample Brews are already in your workspace.');
+  } catch (err) { toast(err.message, true); }
+};
+
 // ─── Wire up ───
 const openDialog = createOpenDialog({ workspace: () => state.workspace, onOpen: openBrew });
 const newDialog = createNewDialog({
@@ -489,9 +690,11 @@ connectLive({
       preview.refresh();
       for (const f of msg.files) session.externalChange(f);
       if (msg.files.some((f) => f === 'brew.yaml' || f.startsWith('content/'))) loadSidebar();
-      if (msg.files.some((f) => /^(content|images|blend)\//.test(f) || f === 'overrides.css')) loadFiles();
+      if (state.mode === 'blend' || msg.files.some((f) => /^(content|images|blend)\//.test(f) || f === 'overrides.css')) loadFiles();
+      if (state.mode === 'blend' && msg.files.includes('blend.yaml')) refreshBlendInfo();
     } else if (msg.type === 'opened') {
-      if (msg.brew.path !== state.brew?.path) setBrew(msg.brew);
+      const info = msg.mode === 'blend' ? msg.blend : msg.brew;
+      if (info.path !== state.brew?.path || msg.mode !== state.mode) setBrew(info, msg.mode);
     }
   },
 });
@@ -499,6 +702,8 @@ connectLive({
 // ─── Start ───
 const initial = await api.state();
 state.workspace = initial.workspace;
+state.lastBrew = store.get('docubrew.lastBrew', null);
 $('#workspace-path').textContent = initial.workspace;
 await loadSidebar();
-await setBrew(initial.brew);
+if (initial.mode === 'blend') await setBrew(initial.blend, 'blend');
+else await setBrew(initial.brew);

@@ -5,6 +5,10 @@
 //   docubrew build <brew-folder>...    export PDFs without opening the app
 //   docubrew new "<title>" --blend <id>
 //   docubrew list                      list Brews and Blends in the workspace
+//   docubrew sample                    add the bundled sample Brews back to the workspace
+//   docubrew blend status [brew]...    is each Brew's Blend copy up to date with the Library?
+//   docubrew blend update <brew>...    copy the current Library Blend into the Brew
+//   docubrew blend reset <id>...       replace a Library Blend with the version bundled with DocuBrew
 //
 // Options: --workspace <dir>  --port <n>  --no-open  -o/--out <file.pdf>
 import path from 'node:path';
@@ -12,7 +16,8 @@ import fs from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { spawn } from 'node:child_process';
 import { startServer } from '../src/server/server.js';
-import { resolveWorkspace, ensureWorkspace, listBrews, listLibrary, createBrew } from '../src/core/workspace.js';
+import { resolveWorkspace, ensureWorkspace, listBrews, listLibrary, createBrew, restoreSamples, libraryDir, attachBlend, resetBundledBlend } from '../src/core/workspace.js';
+import { blendStatus } from '../src/core/blend-status.js';
 import { describeBrew, isBrew, DIST_DIR } from '../src/core/brew.js';
 import { exportPdf } from '../src/core/pdf.js';
 import { slugify } from '../src/core/util.js';
@@ -31,7 +36,7 @@ const { values: opts, positionals } = parseArgs({
   },
 });
 
-const COMMANDS = ['start', 'build', 'new', 'list', 'help'];
+const COMMANDS = ['start', 'build', 'new', 'list', 'sample', 'blend', 'help'];
 let [command, ...args] = positionals;
 if (!COMMANDS.includes(command)) {
   if (command) args.unshift(command);
@@ -42,7 +47,7 @@ if (opts.help) command = 'help';
 const workspace = resolveWorkspace(opts.workspace);
 
 try {
-  await ({ start, build, new: create, list, help })[command]();
+  await ({ start, build, new: create, list, sample, blend, help })[command]();
 } catch (err) {
   console.error(`\n  ${err.message}\n`);
   process.exit(1);
@@ -108,6 +113,47 @@ async function list() {
   console.log('');
 }
 
+async function sample() {
+  await ensureWorkspace(workspace);
+  const added = await restoreSamples(workspace);
+  if (!added.length) console.log('  All sample Brews are already in the workspace.');
+  for (const b of added) console.log(`  ✓ Added ${b.path}`);
+}
+
+async function blend() {
+  const [action, ...targets] = args;
+  if (!['status', 'update', 'reset'].includes(action)) throw new Error('Usage: docubrew blend status [brew]...  |  docubrew blend update <brew>...  |  docubrew blend reset <blend-id>...');
+  await ensureWorkspace(workspace);
+  if (action === 'reset') {
+    if (!targets.length) throw new Error('Name the bundled Blend(s) to reset, e.g. docubrew blend reset typewriter-base typewriter-sop');
+    for (const id of targets) {
+      const b = await resetBundledBlend(workspace, id);
+      console.log(`  ✓ ${id} reset to the bundled version ${b.version}. Brews using it will offer the update.`);
+    }
+    return;
+  }
+  let dirs = targets.map((t) => path.resolve(t));
+  if (!dirs.length) {
+    if (action === 'update') throw new Error('Name the Brew folder(s) to update.');
+    dirs = (await listBrews(workspace)).map((b) => b.path);
+  }
+  for (const dir of dirs) {
+    const s = await blendStatus(libraryDir(workspace), dir);
+    const name = path.basename(dir).padEnd(32);
+    if (action === 'status') {
+      const note = s.state === 'current' ? 'up to date'
+        : s.state === 'out-of-date' ? `update available: ${s.version === s.libraryVersion ? `Library Blend changed since ${s.version}` : `${s.version} → ${s.libraryVersion}`}${s.locallyModified ? ' (copy was edited by hand)' : ''}`
+        : s.state === 'missing' ? `Blend "${s.source}" isn't in the Library` : 'no Blend';
+      console.log(`  ${name} ${s.source || ''}  ${note}`);
+    } else {
+      if (!s.source || s.state === 'missing') { console.log(`  ✗ ${name} no Library Blend to update from`); continue; }
+      if (s.state === 'current') { console.log(`  ✓ ${name} already up to date`); continue; }
+      await attachBlend(workspace, dir, s.source);
+      console.log(`  ✓ ${name} updated to ${s.source} ${s.libraryVersion}${s.locallyModified ? ' (hand edits to the copy were replaced)' : ''}`);
+    }
+  }
+}
+
 async function help() {
   console.log(`
   DocuBrew — Markdown + CSS → print-ready PDF
@@ -117,6 +163,10 @@ async function help() {
   docubrew build --all [folder]       export every Brew in a folder (default: workspace)
   docubrew new "<title>" --blend <id> create a Brew in the workspace
   docubrew list                       list Brews and Blends
+  docubrew sample                     add the bundled sample Brews back to the workspace
+  docubrew blend status [brew]        check Brews' Blend copies against the Library
+  docubrew blend update <brew>        update a Brew's Blend copy from the Library
+  docubrew blend reset <id>           replace a Library Blend with the version bundled with DocuBrew
 
   --workspace, -w <dir>   workspace folder (default: ~/Documents/DocuBrew, or $DOCUBREW_WORKSPACE)
   --port, -p <n>          port for the app (default 4747)

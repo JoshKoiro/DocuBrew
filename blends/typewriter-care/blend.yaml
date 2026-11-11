@@ -1,0 +1,26 @@
+name: Typewriter Care Sheet
+version: 1.0.0
+extends: typewriter-base
+description: Short care and service record that ships with a machine — machine details, work performed, care tips.
+
+page:
+  size: letter
+  margin: 0.7in 0.75in 0.8in 0.75in
+
+variables:
+  machine:
+    make: ""
+    model: ""
+    year: ""
+    serial: ""
+    typeface: ""
+    color: ""
+  owner: ""
+  serviceDate: ""
+  workPerformed: []
+  nextService: ""
+
+changelog:
+  - version: 1.0.0
+    date: 2026-11-11
+    note: First release

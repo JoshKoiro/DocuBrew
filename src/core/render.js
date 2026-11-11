@@ -55,6 +55,7 @@ export function createMarkdown() {
   });
 
   md.core.ruler.push('docubrew_figures', figureRule(md));
+  md.core.ruler.push('docubrew_heading_ids', headingIdRule);
   md.core.ruler.push('docubrew_source_lines', sourceLineRule);
 
   const defaultImage = md.renderer.rules.image;
@@ -87,6 +88,32 @@ function sourceLineRule(state) {
     tok.attrSet('data-source-line', String(tok.map[0] + 1 + offset));
     tok.attrSet('data-source-end', String(tok.map[1] + offset)); // last line of the block, 1-based
   }
+}
+
+// Give every heading an id (for the table of contents and links) and collect it in env.headings.
+// Ids written by the author ({#my-id}) are kept.
+function headingIdRule(state) {
+  const env = state.env || {};
+  const used = env.usedIds || new Set();
+  const t = state.tokens;
+  for (let i = 0; i < t.length; i++) {
+    if (t[i].type !== 'heading_open') continue;
+    const inline = t[i + 1];
+    const text = (inline.children || []).filter((c) => c.type === 'text' || c.type === 'code_inline').map((c) => c.content).join('').trim();
+    let id = t[i].attrGet('id');
+    if (!id) {
+      const base = `${env.docId ? `${env.docId}-` : ''}${slugifyId(text) || 'section'}`;
+      id = base;
+      for (let n = 2; used.has(id); n++) id = `${base}-${n}`;
+      t[i].attrSet('id', id);
+    }
+    used.add(id);
+    env.headings?.push({ level: Number(t[i].tag.slice(1)), text, id });
+  }
+}
+
+function slugifyId(s) {
+  return String(s).toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
 }
 
 // A paragraph that holds only an image becomes <figure>, with the image title as <figcaption>.
@@ -132,6 +159,16 @@ export function substituteVariables(text, vars) {
   });
 }
 
+// Used when the Blend has no templates/toc.html. Page numbers come from CSS:
+//   .toc-page a::after { content: target-counter(attr(href), page); }
+const DEFAULT_TOC = `<nav class="toc">
+  <h1 class="toc-title">{{ toc.title }}</h1>
+  <ol class="toc-list">
+    {{#each toc.entries}}<li class="toc-entry {{ this.levelClass }}"><a href="{{ this.href }}">{{#if this.number}}<span class="toc-number">{{ this.number }}</span>{{/if}}<span class="toc-text">{{ this.text }}</span></a></li>
+    {{/each}}
+  </ol>
+</nav>`;
+
 // ─── CSS setup ───────────────────────────────────────────────────────────────
 
 const PAGE_SIZES = { letter: 'letter', a4: 'A4', a5: 'A5', legal: 'legal', 'half-letter': '5.5in 8.5in', 'b5': 'B5' };
@@ -173,9 +210,12 @@ async function readOptional(file) {
  */
 export async function renderBrew(dir, opts = {}) {
   const { mode = 'preview', runtimeSrc = '/app/preview-runtime.js', pagedSrc = '/vendor/paged.polyfill.js', cacheBust = Date.now() } = opts;
-  const brew = await loadBrew(dir);
+  // The Blend Editor renders a Brew's content with a live Library Blend instead of the Brew's copy.
+  const blendDir = opts.blendDir || path.join(dir, BLEND_DIR);
+  const brew = await loadBrew(dir, { blendDir });
   const md = createMarkdown();
-  const blendDir = path.join(dir, BLEND_DIR);
+  const usedIds = new Set();
+  const tocEntries = [];
 
   const resolveAsset = (src) => {
     if (/^([a-z]+:|\/|#)/i.test(src)) return src;
@@ -200,8 +240,19 @@ export async function renderBrew(dir, opts = {}) {
     const chapter = { number: i + 1, ...front.data, file: rel, index: i };
     chapter.numberPadded = String(chapter.number).padStart(2, '0');
     const ctx = { ...brew.vars, chapter };
-    const body = md.render(substituteVariables(front.body, ctx), { lineOffset: front.offset, resolveAsset, docId: `c${i + 1}` });
+    const headings = [];
+    const body = md.render(substituteVariables(front.body, ctx), { lineOffset: front.offset, resolveAsset, docId: `c${i + 1}`, usedIds, headings });
     const wantsOpener = chapter.title && chapter.template !== 'none' && chapterTpl;
+    if (chapter.title && chapter.toc !== false) {
+      tocEntries.push({ level: 1, text: chapter.title, href: `#chapter-${i + 1}`, number: chapter.numberPadded });
+    }
+    if (chapter.toc !== false) {
+      for (const h of headings) {
+        // With an opener, the chapter title is level 1 and ## is level 2. Without one, # is level 1.
+        const level = chapter.title ? Math.max(2, h.level) : h.level;
+        tocEntries.push({ level, text: h.text, href: `#${h.id}`, number: '' });
+      }
+    }
     const opener = wantsOpener ? renderTemplate(chapterTpl, ctx) : '';
     const classes = ['chapter', chapter.class].filter(Boolean).join(' ');
     chapters.push({
@@ -216,7 +267,19 @@ export async function renderBrew(dir, opts = {}) {
     const tpl = await readOptional(path.join(blendDir, 'templates', 'title-page.html'));
     if (tpl) titlePage = { open: '<section class="title-page" data-source-file="brew.yaml">', body: renderTemplate(tpl, brew.vars) };
   }
-  const sections = [titlePage, ...chapters].filter(Boolean);
+  // Table of contents: `toc: true` or `toc: { depth: 2, title: Contents }` in brew.yaml (or blend.yaml)
+  let tocSection = null;
+  const tocOpt = brew.manifest.toc ?? brew.blend?.toc ?? false;
+  if (tocOpt) {
+    const depth = Number(tocOpt.depth) || 2;
+    const entries = tocEntries.filter((e) => e.level <= depth).map((e) => ({ ...e, levelClass: `toc-level-${e.level}` }));
+    const tpl = (await readOptional(path.join(blendDir, 'templates', 'toc.html'))) || DEFAULT_TOC;
+    tocSection = {
+      open: '<section class="toc-page" data-source-file="brew.yaml">',
+      body: renderTemplate(tpl, { ...brew.vars, toc: { title: tocOpt.title || 'Contents', entries } }),
+    };
+  }
+  const sections = [titlePage, tocSection, ...chapters].filter(Boolean);
 
   // Running values: an optional template whose elements feed string-set (page headers/footers).
   const runningTpl = await readOptional(path.join(blendDir, 'templates', 'running.html'));

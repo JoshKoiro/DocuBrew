@@ -1,0 +1,24 @@
+title: Care & Service Record — Royal Safari
+subtitle: How to keep this machine typing well, and what was done to it.
+revision: A
+date: 2026-11-10
+blend: typewriter-care
+
+variables:
+  organization: The Creative Nerd Co.
+  machine:
+    make: Royal
+    model: Safari
+    year: 1964
+    serial: "0000000"
+    typeface: Pica
+    color: Sand / white keys
+  owner: ""
+  serviceDate: 2026-11-10
+  nextService: Clean and check every 1–2 years of regular use
+  workPerformed:
+    - Mechanism flushed with mineral spirits; type bars free and returning cleanly
+    - Type slugs cleaned
+    - Carriage rails cleaned and lightly oiled
+    - New ribbon installed
+    - Full character test in both cases

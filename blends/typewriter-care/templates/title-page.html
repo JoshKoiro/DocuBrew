@@ -1,0 +1,30 @@
+<header class="care-head">
+  <p class="care-kind">Care &amp; Service Record</p>
+  {{#if organization}}<p class="care-org">{{ organization }}</p>{{/if}}
+</header>
+
+<div class="care-machine">
+  <p class="care-make">{{#if machine.year}}{{ machine.year }} {{/if}}{{ machine.make }}</p>
+  <h1 class="care-model">{{ machine.model }}</h1>
+  {{#if subtitle}}<p class="care-subtitle">{{ subtitle }}</p>{{/if}}
+</div>
+
+<div class="care-grid">
+  <dl class="care-specs">
+    {{#if machine.serial}}<div><dt>Serial</dt><dd>{{ machine.serial }}</dd></div>{{/if}}
+    {{#if machine.typeface}}<div><dt>Typeface</dt><dd>{{ machine.typeface }}</dd></div>{{/if}}
+    {{#if machine.color}}<div><dt>Color</dt><dd>{{ machine.color }}</dd></div>{{/if}}
+    {{#if serviceDate}}<div><dt>Serviced</dt><dd>{{ serviceDate }}</dd></div>{{/if}}
+    {{#if owner}}<div><dt>Prepared for</dt><dd>{{ owner }}</dd></div>{{/if}}
+    {{#if nextService}}<div><dt>Next service</dt><dd>{{ nextService }}</dd></div>{{/if}}
+  </dl>
+
+  {{#if workPerformed}}
+  <div class="care-work">
+    <p class="care-work-title">Work performed</p>
+    <ul>
+      {{#each workPerformed}}<li>{{ this }}</li>{{/each}}
+    </ul>
+  </div>
+  {{/if}}
+</div>

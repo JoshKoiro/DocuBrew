@@ -28,7 +28,11 @@ const PAGE = [
 const slug = (s) => String(s).toLowerCase().normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 const PREFIX = { figure: 'fig', heading: 'h', paragraph: 'p', list: 'list', table: 'table' };
 
-export function createInspector({ preview, session, onJump, onOpenFile, onClose, toast }) {
+// In the Blend Editor, which layer file a kind of element is written to by default.
+const DEFAULT_LAYER = { callout: 'components.css', template: 'templates.css' };
+const LAYERS = [['tokens.css', 'tokens'], ['base.css', 'base'], ['components.css', 'components'], ['page.css', 'page'], ['templates.css', 'templates']];
+
+export function createInspector({ preview, session, onJump, onOpenFile, onClose, toast, getMode }) {
   const root = document.querySelector('#inspector');
   const body = document.querySelector('#insp-body');
   let info = null;
@@ -39,6 +43,9 @@ export function createInspector({ preview, session, onJump, onOpenFile, onClose,
   let pending = {};
   let timer = null;
   let selectorCache = null;
+  let layerFile = null; // Blend Editor only
+  const blendMode = () => getMode() === 'blend';
+  const file = () => (blendMode() ? layerFile : undefined);
 
   document.querySelector('#insp-close').onclick = () => onClose();
   document.querySelector('#insp-where').onclick = () => info?.line && onJump({ file: info.file, line: info.line });
@@ -47,7 +54,7 @@ export function createInspector({ preview, session, onJump, onOpenFile, onClose,
     try { presets = await api.presets(); } catch { presets = {}; }
   }
 
-  const canThis = () => Boolean(info && (ATTR_KINDS.includes(info.kind) && /^content\//.test(info.file || '') || info.id));
+  const canThis = () => !blendMode() && Boolean(info && (ATTR_KINDS.includes(info.kind) && /^content\//.test(info.file || '') || info.id));
 
   function selector() {
     if (scope === 'all') return info.all;
@@ -76,7 +83,10 @@ export function createInspector({ preview, session, onJump, onOpenFile, onClose,
     root.hidden = false;
     // A new selection always starts at "This element" — carrying "All …" over would silently
     // restyle every element of the next kind you click.
-    if (!same) scope = canThis() ? 'this' : 'all';
+    if (!same) {
+      scope = canThis() ? 'this' : 'all';
+      layerFile = DEFAULT_LAYER[next.kind] || 'base.css';
+    }
     else if (!canThis()) scope = 'all';
     renderHeader();
     if (!same) {
@@ -91,7 +101,7 @@ export function createInspector({ preview, session, onJump, onOpenFile, onClose,
     selectorCache = s;
     decls = {};
     if (s) {
-      try { decls = (await api.getStyle(s)).decls; } catch {}
+      try { decls = (await api.getStyle(s, file())).decls; } catch {}
     }
     if (selectorCache !== s) return; // selection changed meanwhile
     update();
@@ -111,14 +121,20 @@ export function createInspector({ preview, session, onJump, onOpenFile, onClose,
 
     // Scope
     const thisOk = canThis();
-    sections.push(section('Applies to',
+    if (blendMode()) {
+      const sel = el('select', { class: 'select', onchange: () => { layerFile = sel.value; build(); loadDecls(); } },
+        ...LAYERS.map(([f, label]) => el('option', { value: f, selected: f === layerFile }, label)));
+      sections.push(section('Applies to',
+        el('p', { class: 'insp-note' }, `${info.allLabel} — in every document that uses this Blend.`),
+        el('div', { class: 'prop' }, el('span', { class: 'prop-label' }, 'Write to'), el('div', { class: 'prop-control' }, sel), el('span'))));
+    } else sections.push(section('Applies to',
       seg([['this', 'This element'], ['all', info.allLabel]], scope, (v) => { scope = v; loadDecls(); }, { disabled: thisOk ? [] : ['this'], key: 'scope' }),
       thisOk ? null : el('p', { class: 'insp-note' }, info.kind === 'template' ? 'Template elements are styled by class.' : 'This kind of block can only be styled as a group.')
     ));
 
     // Presets from the Blend
     const list = presets[info.kind] || [];
-    if (list.length && ATTR_KINDS.includes(info.kind) && /^content\//.test(info.file || '')) {
+    if (!blendMode() && list.length && ATTR_KINDS.includes(info.kind) && /^content\//.test(info.file || '')) {
       const chips = el('div', { class: 'chips' },
         chip('None', null),
         ...list.map((p) => chip(p.label || p.class, p.class)));
@@ -140,9 +156,10 @@ export function createInspector({ preview, session, onJump, onOpenFile, onClose,
     // Rule preview
     const pre = el('pre', { class: 'rule-preview' });
     controls.set('rule', pre);
-    sections.push(section('Written to overrides.css', pre,
+    const target = blendMode() ? layerFile : 'overrides.css';
+    sections.push(section(`Written to ${target}`, pre,
       el('div', { class: 'chips' },
-        el('button', { class: 'insp-link', onclick: () => onOpenFile('overrides.css') }, 'Open overrides.css'),
+        el('button', { class: 'insp-link', onclick: () => onOpenFile(blendMode() ? layerFile : 'overrides.css') }, `Open ${target}`),
         el('button', { class: 'insp-link', onclick: resetAll }, 'Reset all'))));
 
     body.replaceChildren(...sections);
@@ -260,7 +277,7 @@ export function createInspector({ preview, session, onJump, onOpenFile, onClose,
     pending = {};
     if (!Object.keys(set).length) return;
     try {
-      const r = await api.setStyle(s, set);
+      const r = await api.setStyle(s, set, file());
       if (selector() === s) { decls = r.decls; update(); }
     } catch (err) { toast(err.message, true); }
   }
@@ -272,7 +289,7 @@ export function createInspector({ preview, session, onJump, onOpenFile, onClose,
     preview.liveStyle(s, Object.fromEntries(Object.keys(decls).map((k) => [k, ''])));
     decls = {};
     update();
-    try { await api.setStyle(s, set); } catch (err) { toast(err.message, true); }
+    try { await api.setStyle(s, set, file()); } catch (err) { toast(err.message, true); }
   }
 
   async function applyPreset(cls) {

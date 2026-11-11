@@ -36,9 +36,8 @@ export async function listChapters(dir) {
 }
 
 /** Everything needed to render or describe a Brew. */
-export async function loadBrew(dir) {
+export async function loadBrew(dir, { blendDir = path.join(dir, BLEND_DIR) } = {}) {
   const manifest = await readBrewManifest(dir);
-  const blendDir = path.join(dir, BLEND_DIR);
   const blend = (await exists(path.join(blendDir, 'blend.yaml'))) ? await readBlendManifest(blendDir) : null;
   const chapters = await listChapters(dir);
 

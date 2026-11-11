@@ -1,0 +1,33 @@
+# The specimen: a built-in document that uses every element and template, so a Blend can be
+# judged in the Blend Editor without a real document. Variables cover every bundled Blend's templates.
+title: Specimen Document Title
+subtitle: A subtitle long enough to wrap onto a second line, to show how it sets.
+author: Specimen Author
+revision: C
+date: 2026-11-10
+toc: true
+
+variables:
+  organization: Organization Name
+  sop:
+    number: SOP-000
+    category: Category
+  appliesTo: Everything this Blend will be used for
+  revisions:
+    - { rev: A, date: 2026-01-05, change: First issue }
+    - { rev: B, date: 2026-06-12, change: A change note of typical length }
+    - { rev: C, date: 2026-11-10, change: Another change }
+  machine:
+    make: Make
+    model: Model Name
+    year: 1960
+    serial: "0000000"
+    typeface: Pica
+    color: Color
+  owner: Owner Name
+  serviceDate: 2026-11-10
+  workPerformed:
+    - A line of work performed
+    - A second line of work performed, long enough to wrap onto a second line
+    - A third line
+  nextService: Within twelve months

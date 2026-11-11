@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1200" width="1200" height="1200">
+  <rect width="1200" height="1200" fill="#ecebe6"/>
+  <path d="M0 0L1200 1200 M1200 0L0 1200" stroke="#d3d2cc" stroke-width="3"/>
+  <rect x="1.5" y="1.5" width="1197" height="1197" fill="none" stroke="#bdbcb6" stroke-width="3"/>
+  <text x="50%" y="50%" dy="0.35em" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="54" fill="#55544f">Photo placeholder — Segment slots</text>
+</svg>

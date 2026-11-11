@@ -12,23 +12,29 @@ async function readText(file) {
   try { return await fs.readFile(file, 'utf8'); } catch { return ''; }
 }
 
-/** Presets from the Brew's Blend copy: { figure: [{class, label}], table: [...], ... } */
-export async function getPresets(brewDir) {
+/** Presets from a Blend folder (a Brew's copy, or the Blend Editor's flattened preview). */
+export async function getPresets(blendDir) {
   try {
-    const m = await readBlendManifest(path.join(brewDir, 'blend'));
+    const m = await readBlendManifest(blendDir);
     return m.presets || {};
   } catch {
     return {};
   }
 }
 
-export async function getStyle(brewDir, selector) {
-  const css = await readText(path.join(brewDir, OVERRIDES_FILE));
+// Which stylesheet the inspector writes to: overrides.css in a Brew, a layer file in the Blend Editor.
+function styleFile(root, rel = OVERRIDES_FILE) {
+  if (!/^[\w-]+\.css$/.test(rel)) throw new HttpError(400, `Invalid stylesheet: ${rel}`);
+  return path.join(root, rel);
+}
+
+export async function getStyle(root, selector, file) {
+  const css = await readText(styleFile(root, file));
   return { selector, decls: getRule(css, selector), rules: listRules(css) };
 }
 
-export async function setStyle(brewDir, selector, changes) {
-  const file = path.join(brewDir, OVERRIDES_FILE);
+export async function setStyle(root, selector, changes, file) {
+  file = styleFile(root, file);
   const css = await readText(file);
   let next;
   try {

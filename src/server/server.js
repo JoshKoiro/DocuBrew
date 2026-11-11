@@ -1,19 +1,27 @@
-// The local DocuBrew server: serves the app, renders the open Brew, watches its files,
+// The local DocuBrew server: serves the app, renders what's open, watches its files,
 // and pushes "changed" events to the browser over a WebSocket.
+//
+// Two modes:
+//   brew   a document project. Edits go to its files; its blend/ copy is read-only.
+//   blend  a Library Blend in the Blend Editor. It's flattened (with everything it extends) into a temp
+//          folder on every change and previewed against the bundled specimen or any Brew's content.
 import http from 'node:http';
 import fs from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { WebSocketServer } from 'ws';
 import { watch } from 'chokidar';
-import { APP_ROOT, ensureWorkspace, listBrews, listLibrary, createBrew } from '../core/workspace.js';
-import { isBrew, describeBrew, DIST_DIR } from '../core/brew.js';
+import { APP_ROOT, ensureWorkspace, listBrews, listLibrary, createBrew, libraryDir, attachBlend, restoreSamples, createBlend, releaseBlend, describeBlend } from '../core/workspace.js';
+import { isBrew, describeBrew, DIST_DIR, BLEND_DIR } from '../core/brew.js';
 import { renderBrew, wrapLayer } from '../core/render.js';
+import { flattenBlend, resolveChain } from '../core/blend.js';
+import { blendStatus, blendDiff } from '../core/blend-status.js';
 import { exportPdf } from '../core/pdf.js';
 import { slugify, escapeHtml } from '../core/util.js';
 import { safeJoin, sendFile } from './static.js';
 import { getPresets, getStyle, setStyle, getAttrs, setAttrs } from './styling.js';
-import { listBrewFiles, readBrewFile, writeBrewFile, createChapter, saveImage, readBody, HttpError, MAX_IMAGE_BYTES } from './files.js';
+import { listBrewFiles, listBlendFiles, readBrewFile, writeBrewFile, createChapter, saveImage, readBody, HttpError, MAX_IMAGE_BYTES } from './files.js';
 
 const NM = path.join(APP_ROOT, 'node_modules');
 const VENDOR = {
@@ -23,11 +31,21 @@ const VENDOR_DIRS = {
   '/vendor/fonts/inter/': path.join(NM, '@fontsource', 'inter'),
   '/vendor/fonts/inter-tight/': path.join(NM, '@fontsource', 'inter-tight'),
 };
+export const SPECIMEN_DIR = path.join(APP_ROOT, 'specimen');
 
 export async function startServer({ workspace, port = 4747, host = '127.0.0.1', brew = null, quiet = false } = {}) {
   await ensureWorkspace(workspace);
+  const library = libraryDir(workspace);
   const statePath = path.join(workspace, '.docubrew', 'state.json');
-  const state = { brewDir: null, watcher: null };
+  const tmpRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'docubrew-'));
+  const state = {
+    mode: 'brew',
+    brewDir: null,      // brew mode: the open Brew
+    blendId: null,      // blend mode: the Library Blend being edited
+    previewWith: null,  // blend mode: folder whose content previews the Blend (specimen or a Brew)
+    flatDir: null,      // blend mode: current flattened copy
+    watcher: null,
+  };
   const sockets = new Set();
   const log = (...a) => { if (!quiet) console.log(...a); };
 
@@ -36,18 +54,68 @@ export async function startServer({ workspace, port = 4747, host = '127.0.0.1', 
     for (const ws of sockets) if (ws.readyState === 1) ws.send(data);
   };
 
+  async function remember(patch) {
+    let saved = {};
+    try { saved = JSON.parse(await fs.readFile(statePath, 'utf8')); } catch {}
+    await fs.mkdir(path.dirname(statePath), { recursive: true });
+    await fs.writeFile(statePath, JSON.stringify({ ...saved, ...patch }, null, 2)).catch(() => {});
+  }
+
   async function openBrew(dir) {
     dir = path.resolve(dir);
     if (!(await isBrew(dir))) throw new Error(`Not a Brew (no brew.yaml): ${dir}`);
     await state.watcher?.close();
-    state.brewDir = dir;
-    state.watcher = watchBrew(dir, (files) => broadcast({ type: 'changed', files }));
-    await fs.mkdir(path.dirname(statePath), { recursive: true });
-    await fs.writeFile(statePath, JSON.stringify({ lastBrew: dir }, null, 2)).catch(() => {});
+    Object.assign(state, { mode: 'brew', brewDir: dir, blendId: null, previewWith: null });
+    state.watcher = watchDirs([dir], dir, (files) => broadcast({ type: 'changed', files }));
+    await remember({ lastBrew: dir });
     const info = await describeBrew(dir);
-    broadcast({ type: 'opened', brew: info });
+    broadcast({ type: 'opened', mode: 'brew', brew: info });
     log(`Opened ${dir}`);
     return info;
+  }
+
+  async function flattenForPreview() {
+    const next = path.join(tmpRoot, `${state.blendId}-${Date.now()}`);
+    await flattenBlend(library, state.blendId, next);
+    const old = state.flatDir;
+    state.flatDir = next;
+    if (old) setTimeout(() => fs.rm(old, { recursive: true, force: true }).catch(() => {}), 5000);
+  }
+
+  async function openBlend(id, { previewWith } = {}) {
+    const chain = await resolveChain(library, id); // throws if missing
+    let content = previewWith || state.previewWith || SPECIMEN_DIR;
+    if (content !== SPECIMEN_DIR && !(await isBrew(content))) content = SPECIMEN_DIR;
+    await state.watcher?.close();
+    Object.assign(state, { mode: 'blend', blendId: id, previewWith: content });
+    await flattenForPreview();
+    const blendDir = path.join(library, id);
+    state.watcher = watchDirs([...chain.map((c) => c.dir), content], blendDir, async (files) => {
+      try { await flattenForPreview(); } catch (err) { log(err.message); }
+      broadcast({ type: 'changed', files });
+    });
+    await remember({ lastBlendPreview: content });
+    const info = await blendInfo();
+    broadcast({ type: 'opened', mode: 'blend', blend: info });
+    log(`Blend Editor: ${id}`);
+    return info;
+  }
+
+  async function blendInfo() {
+    const b = await describeBlend(workspace, state.blendId);
+    return { ...b, path: b.dir, title: b.name, previewWith: state.previewWith === SPECIMEN_DIR ? 'specimen' : state.previewWith };
+  }
+
+  // Where the editor reads and writes files.
+  function editRoot() {
+    if (state.mode === 'blend') return path.join(library, state.blendId);
+    if (!state.brewDir) throw new HttpError(409, 'No Brew is open.');
+    return state.brewDir;
+  }
+  const blendMode = () => state.mode === 'blend';
+  function requireBrew() {
+    if (state.mode !== 'brew' || !state.brewDir) throw new HttpError(409, 'Open a Brew for this.');
+    return state.brewDir;
   }
 
   // Reopen the explicitly requested Brew, or the last one used.
@@ -64,47 +132,74 @@ export async function startServer({ workspace, port = 4747, host = '127.0.0.1', 
   const api = {
     'GET /api/state': async () => ({
       workspace,
-      brew: state.brewDir ? await describeBrew(state.brewDir) : null,
+      mode: state.mode,
+      brew: state.mode === 'brew' && state.brewDir ? await describeBrew(state.brewDir) : null,
+      blend: state.mode === 'blend' ? await blendInfo() : null,
     }),
     'GET /api/brews': async () => listBrews(workspace),
-    'GET /api/blends': async () => (await listLibrary(workspace)).filter((b) => !b.abstract),
+    'GET /api/blends': async (_b, url) => (await listLibrary(workspace)).filter((b) => url.searchParams.get('all') || !b.abstract),
     'POST /api/open': async (body) => openBrew(body.path),
     'POST /api/brews': async (body) => {
       const info = await createBrew(workspace, body);
       return openBrew(info.path);
     },
+    'POST /api/samples': async () => restoreSamples(workspace),
     'GET /api/fs': async (_b, url) => browse(url.searchParams.get('path') || workspace),
     'POST /api/export': async () => {
-      if (!state.brewDir) throw new Error('No Brew is open.');
-      const info = await describeBrew(state.brewDir);
+      const dir = requireBrew();
+      const info = await describeBrew(dir);
       const name = `${slugify(info.title)}.pdf`;
-      const out = path.join(state.brewDir, DIST_DIR, name);
+      const out = path.join(dir, DIST_DIR, name);
       const result = await exportPdf(`${server.url}/preview/?mode=print`, out);
       log(`Exported ${out} (${result.pages} pages, ${result.ms} ms)`);
       return { ...result, url: `/preview/${DIST_DIR}/${encodeURIComponent(name)}` };
     },
-    'GET /api/files': async () => listBrewFiles(requireBrew()),
-    'GET /api/file': async (_b, url) => readBrewFile(requireBrew(), url.searchParams.get('path')),
-    'PUT /api/file': async (body) => writeBrewFile(requireBrew(), body.path, body.content, body.baseMtime),
+
+    // Editor files (Brew or Blend, depending on mode)
+    'GET /api/files': async () => (blendMode() ? listBlendFiles(editRoot()) : listBrewFiles(editRoot())),
+    'GET /api/file': async (_b, url) => readBrewFile(editRoot(), url.searchParams.get('path'), { blendMode: blendMode() }),
+    'PUT /api/file': async (body) => writeBrewFile(editRoot(), body.path, body.content, body.baseMtime, { blendMode: blendMode() }),
     'POST /api/chapters': async (body) => createChapter(requireBrew(), body.title),
     'POST /api/images': async (_b, url, req) => saveImage(requireBrew(), url.searchParams.get('name') || '', await readBody(req, MAX_IMAGE_BYTES)),
-    'GET /api/presets': async () => getPresets(requireBrew()),
-    'GET /api/style': async (_b, url) => getStyle(requireBrew(), url.searchParams.get('selector') || ''),
-    'POST /api/style': async (body) => setStyle(requireBrew(), body.selector, body.set),
+
+    // Inspector
+    'GET /api/presets': async () => getPresets(blendMode() ? state.flatDir : path.join(requireBrew(), BLEND_DIR)),
+    'GET /api/style': async (_b, url) => getStyle(editRoot(), url.searchParams.get('selector') || '', url.searchParams.get('file') || undefined),
+    'POST /api/style': async (body) => setStyle(editRoot(), body.selector, body.set, body.file || undefined),
     'GET /api/attrs': async (_b, url) => getAttrs(requireBrew(), Object.fromEntries(url.searchParams)),
     'POST /api/attrs': async (body) => setAttrs(requireBrew(), body),
+
+    // Blend copy in a Brew vs. the Library
+    'GET /api/blend/status': async () => blendStatus(library, requireBrew()),
+    'GET /api/blend/diff': async () => blendDiff(library, requireBrew()),
+    'POST /api/blend/update': async () => {
+      const dir = requireBrew();
+      const status = await blendStatus(library, dir);
+      if (!status.source || status.state === 'missing') throw new HttpError(404, `Blend "${status.source}" isn't in the Library.`);
+      await attachBlend(workspace, dir, status.source);
+      return blendStatus(library, dir);
+    },
+
+    // Blend Editor
+    'POST /api/blend/open': async (body) => openBlend(body.id, { previewWith: body.previewWith === 'specimen' ? SPECIMEN_DIR : body.previewWith }),
+    'POST /api/blend/preview-with': async (body) => openBlend(state.blendId, { previewWith: body.path === 'specimen' ? SPECIMEN_DIR : body.path }),
+    'POST /api/blend/create': async (body) => {
+      const { id } = await createBlend(workspace, body);
+      return openBlend(id);
+    },
+    'POST /api/blend/release': async (body) => {
+      if (!blendMode()) throw new HttpError(409, 'Open a Blend in the Blend Editor first.');
+      const r = await releaseBlend(workspace, state.blendId, body);
+      return { ...r, blend: await blendInfo() };
+    },
+
     'POST /api/reveal': async (body) => {
-      const target = body.path || state.brewDir;
+      const target = body.path || (blendMode() ? editRoot() : state.brewDir);
       if (!target) throw new Error('Nothing to reveal.');
       reveal(target, body.app, Boolean(body.select));
       return { ok: true };
     },
   };
-
-  function requireBrew() {
-    if (!state.brewDir) throw new HttpError(409, 'No Brew is open.');
-    return state.brewDir;
-  }
 
   async function handle(req, res) {
     const url = new URL(req.url, 'http://localhost');
@@ -140,8 +235,14 @@ export async function startServer({ workspace, port = 4747, host = '127.0.0.1', 
 
     if (p === '/preview/' || p === '/preview/index.html') return renderPreview(res, url);
     if (p.startsWith('/preview/')) {
-      if (!state.brewDir) return notFound(res);
-      const f = safeJoin(state.brewDir, p.slice('/preview/'.length));
+      const rel = p.slice('/preview/'.length);
+      let f = null;
+      if (blendMode()) {
+        // blend/… comes from the live flattened Blend; everything else from the preview content
+        f = rel.startsWith(`${BLEND_DIR}/`) ? safeJoin(state.flatDir, rel.slice(BLEND_DIR.length + 1)) : safeJoin(state.previewWith, rel);
+      } else if (state.brewDir) {
+        f = safeJoin(state.brewDir, rel);
+      }
       const layer = url.searchParams.get('layer');
       const ok = f && (await sendFile(res, f, layer && f.endsWith('.css') ? { transform: (css) => wrapLayer(css, layer) } : {}));
       return ok || notFound(res);
@@ -152,8 +253,12 @@ export async function startServer({ workspace, port = 4747, host = '127.0.0.1', 
 
   async function renderPreview(res, url) {
     const mode = url.searchParams.get('mode') === 'print' ? 'print' : 'preview';
-    if (!state.brewDir) return html(res, 200, errorPage('No Brew is open.'));
     try {
+      if (blendMode()) {
+        const { html: doc } = await renderBrew(state.previewWith, { mode, blendDir: state.flatDir });
+        return html(res, 200, doc);
+      }
+      if (!state.brewDir) return html(res, 200, errorPage('No Brew is open.'));
       const { html: doc } = await renderBrew(state.brewDir, { mode });
       html(res, 200, doc);
     } catch (err) {
@@ -180,30 +285,33 @@ export async function startServer({ workspace, port = 4747, host = '127.0.0.1', 
   const actualPort = await listen(server, port, host);
   server.url = `http://${host}:${actualPort}`;
   server.openBrew = openBrew;
+  server.openBlend = openBlend;
   server.state = state;
   const close = server.close.bind(server);
   server.close = async () => {
     await state.watcher?.close();
     for (const ws of sockets) ws.terminate();
     await new Promise((r) => close(r));
+    await fs.rm(tmpRoot, { recursive: true, force: true }).catch(() => {});
   };
   return server;
 }
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
-function watchBrew(dir, onChange) {
+/** Watch folders; report changed paths relative to `root` (paths outside it are prefixed "../"). */
+function watchDirs(dirs, root, onChange) {
   let pending = new Set();
   let timer = null;
   const skip = new Set([DIST_DIR, '.git', 'node_modules', '.docubrew']);
-  const ignored = (p) => path.relative(dir, p).split(path.sep).some((seg) => skip.has(seg));
-  const watcher = watch(dir, {
+  const ignored = (p) => dirs.some((d) => path.relative(d, p).split(path.sep).some((seg) => skip.has(seg)));
+  const watcher = watch([...new Set(dirs)], {
     ignoreInitial: true,
     ignored,
     awaitWriteFinish: { stabilityThreshold: 60, pollInterval: 20 },
   });
   watcher.on('all', (_event, file) => {
-    pending.add(path.relative(dir, file).split(path.sep).join('/'));
+    pending.add(path.relative(root, file).split(path.sep).join('/'));
     clearTimeout(timer);
     timer = setTimeout(() => {
       const files = [...pending];

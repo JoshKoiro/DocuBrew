@@ -4,6 +4,7 @@ author: ""
 revision: B
 date: 2026-11-10
 blend: typewriter-sop
+toc: true
 
 variables:
   organization: The Creative Nerd Co.

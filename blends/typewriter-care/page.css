@@ -1,0 +1,26 @@
+/* Care sheets flow continuously: the header block and every section share pages. */
+.run-org { string-set: org content(text); }
+.run-machine { string-set: machine content(text); }
+
+.title-page { page: auto; }
+.chapter { page: auto; break-before: auto; }
+
+@page {
+  /* Paged.js: a margin box redefined here loses the base Blend's declarations, so repeat them. */
+  @bottom-left {
+    content: string(machine);
+    font-family: var(--font-body);
+    font-size: var(--size-tiny);
+    color: var(--ink-soft);
+    vertical-align: top;
+    padding-top: 10pt;
+  }
+  @bottom-center {
+    content: string(org);
+    font-family: var(--font-body);
+    font-size: var(--size-tiny);
+    color: var(--ink-soft);
+    vertical-align: top;
+    padding-top: 10pt;
+  }
+}

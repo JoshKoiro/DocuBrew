@@ -27,7 +27,9 @@
     <div class="bar-left">
       <span class="wordmark">DocuBrew</span>
       <span class="bar-sep" aria-hidden="true"></span>
+      <span class="mode-tag" id="mode-tag" hidden>Blend Editor</span>
       <span class="bar-doc" id="doc-title">No Brew open</span>
+      <button class="btn btn-quiet" id="btn-back" hidden title="Back to the last Brew">← Back to document</button>
     </div>
     <nav class="bar-right">
       <button class="btn" id="btn-new" title="New Brew (Ctrl+Alt+N)">New</button>
@@ -35,7 +37,8 @@
       <span class="bar-sep" aria-hidden="true"></span>
       <button class="btn needs-brew" id="btn-folder" title="Show the Brew folder" disabled>Folder</button>
       <button class="btn needs-brew" id="btn-code" title="Open the Brew in VS Code" disabled>VS Code</button>
-      <button class="btn btn-primary needs-brew" id="btn-export" title="Export PDF (Ctrl+E)" disabled>Export PDF</button>
+      <button class="btn btn-primary needs-brew brew-only" id="btn-export" title="Export PDF (Ctrl+E)" disabled>Export PDF</button>
+      <button class="btn btn-primary blend-only" id="btn-release" title="Give this Blend a new version number, so Brews using it are offered the update" hidden>Release version…</button>
       <button class="btn btn-icon" id="btn-theme" title="Switch light / dark" aria-label="Switch light or dark theme">
         <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>
         <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 14.6A8.6 8.6 0 0 1 9.4 3.5a8.6 8.6 0 1 0 11.1 11.1z"/></svg>
@@ -60,10 +63,12 @@
       <section class="side-block">
         <h2 class="label">Brews</h2>
         <ul class="list" id="brew-list"></ul>
+        <button class="btn btn-quiet side-action" id="btn-samples" type="button">+ Add sample Brews</button>
       </section>
       <section class="side-block">
         <h2 class="label">Blend Library</h2>
-        <ul class="list list-static" id="blend-list"></ul>
+        <ul class="list" id="blend-list"></ul>
+        <button class="btn btn-quiet side-action" id="btn-new-blend" type="button">+ New Blend</button>
       </section>
       <footer class="side-foot">
         <span class="label">Workspace</span>
@@ -77,6 +82,9 @@
           <button class="btn btn-quiet toggle is-on needs-brew" id="btn-editor" title="Show or hide the editor (Ctrl+\\)" disabled>Editor</button>
           <button class="btn btn-quiet toggle is-on needs-brew" id="btn-sync" title="Scroll the preview with the editor" disabled>Sync</button>
           <span class="live" id="live" title="Connection to the DocuBrew server"><span class="live-dot"></span><span id="live-text">Connecting</span></span>
+          <label class="preview-with blend-only" hidden>Preview with
+            <select id="preview-with"></select>
+          </label>
           <span class="meta" id="meta"></span>
         </div>
         <div class="toolbar-right zoom" role="group" aria-label="Zoom">
@@ -86,6 +94,14 @@
           <button class="btn btn-quiet zoom-value" id="zoom-reset" title="Reset to 100%">100%</button>
           <button class="btn btn-quiet" id="zoom-in" aria-label="Zoom in">+</button>
           <button class="btn btn-quiet toggle" id="zoom-fit" title="Fit page width (follows window and editor size)">Fit</button>
+        </div>
+      </div>
+      <div class="banner" id="blend-banner" hidden>
+        <p id="blend-banner-text"></p>
+        <div class="banner-actions">
+          <button class="btn" id="blend-review">Review changes</button>
+          <button class="btn btn-primary" id="blend-update">Update</button>
+          <button class="btn btn-quiet" id="blend-dismiss">Not now</button>
         </div>
       </div>
       <div class="work" id="work">
@@ -178,6 +194,72 @@
       <footer class="dialog-foot">
         <span class="hint">The Blend is copied into the Brew.</span>
         <button type="submit" class="btn btn-primary">Create</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Review Blend changes -->
+  <dialog class="dialog dialog-wide" id="dlg-diff">
+    <form method="dialog" class="dialog-form">
+      <header class="dialog-head">
+        <h2>Blend changes</h2>
+        <button class="btn btn-quiet" value="cancel">Close</button>
+      </header>
+      <p class="dialog-note" id="diff-note"></p>
+      <div class="diff" id="diff-body"></div>
+      <footer class="dialog-foot">
+        <span class="hint">Your overrides.css and content are not touched by an update.</span>
+        <button type="button" class="btn btn-primary" id="diff-update">Update</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- New Blend -->
+  <dialog class="dialog" id="dlg-new-blend">
+    <form class="dialog-form" id="new-blend-form">
+      <header class="dialog-head">
+        <h2>New Blend</h2>
+        <button type="button" class="btn btn-quiet" data-close>Close</button>
+      </header>
+      <label class="field">
+        <span class="label">Name</span>
+        <input type="text" name="blendName" required autocomplete="off" placeholder="Parts Catalog">
+      </label>
+      <label class="field">
+        <span class="label">Builds on</span>
+        <select name="blendExtends" class="select"></select>
+      </label>
+      <label class="field">
+        <span class="label">Description</span>
+        <input type="text" name="blendDescription" autocomplete="off" placeholder="What documents this Blend is for">
+      </label>
+      <p class="form-error" id="new-blend-error" hidden></p>
+      <footer class="dialog-foot">
+        <span class="hint">Starts with empty stylesheets that add to the Blend it builds on.</span>
+        <button type="submit" class="btn btn-primary">Create</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Release version -->
+  <dialog class="dialog" id="dlg-release">
+    <form class="dialog-form" id="release-form">
+      <header class="dialog-head">
+        <h2>Release version</h2>
+        <button type="button" class="btn btn-quiet" data-close>Close</button>
+      </header>
+      <fieldset class="field">
+        <legend class="label">Change</legend>
+        <div class="blend-picks" id="release-picks"></div>
+      </fieldset>
+      <label class="field">
+        <span class="label">Note</span>
+        <input type="text" name="releaseNote" autocomplete="off" placeholder="What changed, in a few words">
+      </label>
+      <p class="form-error" id="release-error" hidden></p>
+      <footer class="dialog-foot">
+        <span class="hint">Recorded in blend.yaml's changelog.</span>
+        <button type="submit" class="btn btn-primary">Release</button>
       </footer>
     </form>
   </dialog>

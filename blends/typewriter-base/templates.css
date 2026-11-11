@@ -1,0 +1,35 @@
+/* ── Templates ────────────────────────────────────────────────────────────────
+   Shared template styles. Blends that extend this one add their own after it. */
+
+/* Table of contents — turn on with `toc: true` in brew.yaml.
+   Page numbers: target-counter() looks up the page each link points to. */
+.toc-page { break-before: page; }
+.toc-title {
+  font-size: var(--size-h1);
+  letter-spacing: var(--tracking-display);
+  border-top: 3pt solid var(--ink);
+  padding-top: 8pt;
+  margin: 0 0 calc(var(--unit) * 1.5);
+}
+.toc-list { list-style: none; margin: 0; padding: 0; }
+.toc-entry { margin: 0; break-inside: avoid; }
+.toc-entry a {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7em;
+  color: inherit;
+  text-decoration: none;
+  padding: 0.3em 0;
+}
+.toc-entry a::after {
+  content: target-counter(attr(href), page);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-soft);
+}
+.toc-text { flex: 1; }
+.toc-number { font-family: var(--font-mono); color: var(--accent); min-width: 1.6em; }
+.toc-level-1 { border-top: var(--hairline) solid var(--rule); margin-top: 0.5em; }
+.toc-level-1 a { font-family: var(--font-heading); font-weight: 700; font-size: 11pt; letter-spacing: var(--tracking-heading); padding: 0.45em 0; }
+.toc-level-1 a::after { color: var(--ink); }
+.toc-level-2 a { padding-left: 2.3em; font-size: var(--size-small); }
+.toc-level-3 a { padding-left: 4em; font-size: var(--size-small); color: var(--ink-soft); }

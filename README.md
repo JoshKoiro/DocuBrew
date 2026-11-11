@@ -6,7 +6,7 @@ Markdown + reusable CSS styles → print-ready PDFs, with a live, paginated prev
 
 Write in Markdown (in any editor), style with layered CSS **Blends**, and see the printed pages update every time you save. Export to PDF with page numbers, running headers and footers handled by standard CSS Paged Media.
 
-Status: **Phase 3** (core loop, editing, visual styling). See [PLAN.md](PLAN.md) for the roadmap and [docs/DECISIONS.md](docs/DECISIONS.md) for why things are the way they are.
+Status: **Phase 4** (core loop, editing, visual styling, templates and the Blend Editor). See [PLAN.md](PLAN.md) for the roadmap and [docs/DECISIONS.md](docs/DECISIONS.md) for why things are the way they are.
 
 ## Quick start
 
@@ -33,6 +33,10 @@ On first run DocuBrew creates its workspace at `~/Documents/DocuBrew/` with the 
   - **Applies to** — *This element* (DocuBrew gives it a readable id in the Markdown, e.g. `{#fig-type-basket}`, and styles `#fig-type-basket`) or *All figures / All paragraphs / …* (styles every element of that kind in this Brew). Each new selection starts at *This element*.
   - Changes show instantly, then the pages re-flow. Rules are written to a marked **DocuBrew visual edits** section in `overrides.css` — the rest of that file is yours and is never touched. Esc stops inspecting.
 - **Zoom.** **Fit** keeps the page fitted to the preview as you resize; − / + / 100% switch to a fixed zoom.
+
+- **Blend Editor.** Click a Blend in the *Blend Library* to edit it. The preview shows the **specimen** — a built-in document with every element and template — or any of your Brews (*Preview with*). Every stylesheet layer is listed; ones the Blend doesn't have yet show *empty* and are created when you first save. The inspector works here too, writing *All …* rules to the layer you pick. **Release version…** bumps the version and records a changelog entry in `blend.yaml`. **+ New Blend** starts one that builds on another. **← Back to document** returns to your Brew.
+- **Blend updates.** When a Brew's Blend copy differs from the Library, a banner offers **Review changes** (a file-by-file diff) and **Update**. Updating never touches your content or `overrides.css`. If the copy was edited by hand, the banner says so first.
+- **Samples.** *+ Add sample Brews* (or `docubrew sample`) puts back any bundled sample you've deleted.
 
 Shortcuts: I inspect · Esc stop inspecting · Ctrl+S save · Ctrl+E export PDF · Ctrl+O open Brew · Ctrl+\ toggle editor · Ctrl+Alt+N new Brew.
 
@@ -64,6 +68,7 @@ title: Cleaning a Manual Typewriter
 subtitle: Solvent cleaning of the type basket, segment and carriage.
 revision: B
 date: 2026-11-10
+toc: true             # or: toc: { depth: 3, title: Contents }
 page:                 # optional: override the Blend's page setup
   size: letter        # letter | A4 | A5 | half-letter | "6in 9in" | "letter landscape"
   margin: 0.8in
@@ -86,6 +91,10 @@ Text can use variables: this applies to a {{ machine.example }}.
 ```
 
 A chapter with a `title` gets the Blend's chapter-opener template. Leave `title` out (or set `template: none`) for a plain page.
+
+### Table of contents
+
+`toc: true` in `brew.yaml` adds a contents page after the title page, listing chapter titles and their `##` headings with page numbers. `toc: { depth: 3 }` adds `###` too; `toc: false` in a chapter's front matter leaves it out. Every heading gets an id automatically, so links like `[see Procedure](#chapter-2)` work.
 
 ### Markdown extras
 
@@ -118,6 +127,7 @@ Blends/typewriter-sop/
     title-page.html       optional
     chapter-opener.html   optional
     running.html          optional: values for page headers/footers via string-set
+    toc.html              optional: contents page (DocuBrew has a default)
 ```
 
 Write plain CSS in each file — DocuBrew wraps it in its cascade layer. The order is:
@@ -132,7 +142,9 @@ A Blend can `extends:` another. When a Brew is created, the whole chain is flatt
 
 Templates use `{{ value }}`, `{{{ raw html }}}`, `{{#if x}}…{{else}}…{{/if}}` and `{{#each list}}…{{ this.field }}…{{/each}}`. Inside a chapter opener, `chapter.title`, `chapter.number`, `chapter.numberPadded` and any front-matter field are available.
 
-Bundled Blends: **Typewriter Base** (abstract foundation) and **Typewriter SOP**.
+Bundled Blends: **Typewriter Base** (abstract foundation), **Typewriter SOP**, and **Typewriter Care Sheet** (a short record that ships with a machine: machine details, work performed, care tips — sections flow without page breaks).
+
+**Writing page margins (Paged.js quirk):** if a Blend redefines a margin box another Blend already set (e.g. `@bottom-left`), repeat all of its declarations, not just `content` — the earlier ones are dropped. And give headings that carry a rule `break-inside: avoid`, or a sliver of them can be left at the foot of a page.
 
 ## Command line
 
@@ -143,6 +155,10 @@ docubrew build path/to/brew       # export a PDF to path/to/brew/dist/
 docubrew build --all              # export every Brew in the workspace
 docubrew new "Escapement Adjustment" --blend typewriter-sop
 docubrew list                     # Brews and Blends in the workspace
+docubrew sample                   # add back any deleted sample Brews
+docubrew blend status             # which Brews' Blend copies differ from the Library
+docubrew blend update path/to/brew
+docubrew blend reset typewriter-sop   # replace a Library Blend with the version bundled with DocuBrew
 ```
 
 Options: `--workspace <dir>` (or `DOCUBREW_WORKSPACE`), `--port <n>` (default 4747), `--no-open`, `-o out.pdf`.

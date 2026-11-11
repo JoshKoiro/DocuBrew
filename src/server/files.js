@@ -27,34 +27,65 @@ function resolve(dir, rel) {
 const isReadOnly = (rel) => rel === BLEND_DIR || rel.startsWith(`${BLEND_DIR}/`);
 const toPosix = (p) => p.split(path.sep).join('/');
 
-/** Files the editor can open, grouped for the sidebar. */
+/** Files the editor can open in a Brew, grouped for the sidebar. */
 export async function listBrewFiles(dir) {
-  const document = [BREW_FILE, OVERRIDES_FILE].filter(Boolean);
   const chapters = await listChapters(dir);
   const blend = (await listFiles(path.join(dir, BLEND_DIR))).filter((f) => EDITABLE.test(f) && !f.startsWith('fonts/')).map((f) => `${BLEND_DIR}/${f}`);
-  const images = (await listFiles(path.join(dir, 'images'))).filter((f) => IMAGE.test(f)).map((f) => `images/${f}`);
-  return { document, chapters, blend, images };
+  const item = (p, label = p, readOnly = false) => ({ path: p, label, readOnly });
+  return {
+    groups: [
+      { id: 'document', files: [item(BREW_FILE), item(OVERRIDES_FILE)] },
+      { id: 'chapters', label: 'Chapters', files: chapters.map((p) => item(p, p.replace(/^content\//, ''))) },
+      { id: 'blend', label: 'Blend copy · read-only', collapsed: true, files: blend.map((p) => item(p, p.replace(/^blend\//, ''), true)) },
+    ],
+    defaultFile: chapters[0] || BREW_FILE,
+  };
 }
 
-export async function readBrewFile(dir, rel) {
+const LAYER_FILES = ['fonts.css', 'tokens.css', 'base.css', 'components.css', 'page.css', 'templates.css'];
+
+/** Files of a Library Blend, for the Blend Editor. */
+export async function listBlendFiles(dir) {
+  const all = await listFiles(dir);
+  const item = (p, label = p, missing = false) => ({ path: p, label, readOnly: false, missing });
+  const layers = LAYER_FILES;
+  const templates = all.filter((f) => f.startsWith('templates/') && EDITABLE.test(f));
+  const other = all.filter((f) => EDITABLE.test(f) && f !== 'blend.yaml' && !layers.includes(f) && !templates.includes(f) && !f.startsWith('fonts/'));
+  return {
+    groups: [
+      { id: 'manifest', files: [item('blend.yaml')] },
+      // Every layer is listed; ones this Blend doesn't have yet are created on first save.
+      { id: 'layers', label: 'Stylesheets', files: layers.map((f) => item(f, f, !all.includes(f))) },
+      { id: 'templates', label: 'Templates', files: templates.map((f) => item(f, f.replace(/^templates\//, ''))) },
+      ...(other.length ? [{ id: 'other', label: 'Other', files: other.map((f) => item(f)) }] : []),
+    ],
+    defaultFile: all.includes('base.css') ? 'base.css' : 'blend.yaml',
+  };
+}
+
+export async function readBrewFile(dir, rel, { blendMode = false } = {}) {
   const full = resolve(dir, rel);
   if (!EDITABLE.test(full)) throw new HttpError(400, `Not a text file DocuBrew can edit: ${rel}`);
   let content, stat;
   try {
     [content, stat] = await Promise.all([fs.readFile(full, 'utf8'), fs.stat(full)]);
   } catch {
+    // In the Blend Editor, a layer this Blend doesn't define yet opens empty and is created on save.
+    if (blendMode && LAYER_FILES.includes(toPosix(rel))) {
+      return { path: toPosix(rel), content: `/* ${rel}: added after the same layer of the Blend this one builds on. */\n`, mtime: null, readOnly: false, isNew: true };
+    }
     throw new HttpError(404, `File not found: ${rel}`);
   }
-  return { path: toPosix(rel), content, mtime: stat.mtimeMs, readOnly: isReadOnly(toPosix(rel)) };
+  return { path: toPosix(rel), content, mtime: stat.mtimeMs, readOnly: !blendMode && isReadOnly(toPosix(rel)) };
 }
 
 /**
  * Save a file. `baseMtime` is the modification time the editor loaded; if the file changed on disk
  * since then (e.g. saved from VS Code), the save is refused with 409 and the disk version.
  */
-export async function writeBrewFile(dir, rel, content, baseMtime) {
+export async function writeBrewFile(dir, rel, content, baseMtime, { blendMode = false } = {}) {
   rel = toPosix(rel);
-  if (isReadOnly(rel)) throw new HttpError(403, 'The Blend copy is read-only. Put document styles in overrides.css.');
+  if (!blendMode && isReadOnly(rel)) throw new HttpError(403, 'The Blend copy is read-only. Put document styles in overrides.css.');
   if (rel.startsWith('dist/')) throw new HttpError(403, 'dist/ holds exported files.');
   const full = resolve(dir, rel);
   if (!EDITABLE.test(full)) throw new HttpError(400, `Not a text file DocuBrew can edit: ${rel}`);

@@ -1,7 +1,7 @@
 # Shared foundation for every typewriter-shop Blend: fonts, colors, type scale and base elements.
 # Abstract: not offered when creating a Brew — other Blends extend it.
 name: Typewriter Base
-version: 1.0.0
+version: 1.1.0
 abstract: true
 description: Brand foundation — Inter / Inter Tight / Courier Prime, warm neutrals, one red accent.
 
@@ -22,3 +22,11 @@ presets:
     - { class: fig-left,  label: "Left, text wraps" }
   table:
     - { class: spec, label: "Spec sheet" }
+
+changelog:
+  - version: 1.1.0
+    date: 2026-11-11
+    note: Table of contents styles; quoted preset labels
+  - version: 1.0.0
+    date: 2026-11-10
+    note: First release

@@ -47,6 +47,7 @@
 
 /* Section opener */
 .chapter-opener {
+  break-inside: avoid;
   border-top: 3pt solid var(--ink);
   padding-top: 8pt;
   margin-bottom: calc(var(--unit) * 2);
