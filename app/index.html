@@ -37,6 +37,7 @@
       <span class="bar-sep" aria-hidden="true"></span>
       <button class="btn needs-brew" id="btn-folder" title="Show the Brew folder" disabled>Folder</button>
       <button class="btn needs-brew" id="btn-code" title="Open the Brew in VS Code" disabled>VS Code</button>
+      <button class="btn needs-brew brew-only" id="btn-pack" title="Save this Brew as one .brew file to send or archive" disabled>Export .brew</button>
       <button class="btn btn-primary needs-brew brew-only" id="btn-export" title="Export PDF (Ctrl+E)" disabled>Export PDF</button>
       <button class="btn btn-primary blend-only" id="btn-release" title="Give this Blend a new version number, so Brews using it are offered the update" hidden>Release version…</button>
       <button class="btn btn-icon" id="btn-theme" title="Switch light / dark" aria-label="Switch light or dark theme">
@@ -99,6 +100,7 @@
       <div class="banner" id="blend-banner" hidden>
         <p id="blend-banner-text"></p>
         <div class="banner-actions">
+          <button class="btn btn-primary" id="blend-adopt" hidden>Add Blend to Library</button>
           <button class="btn" id="blend-review">Review changes</button>
           <button class="btn btn-primary" id="blend-update">Update</button>
           <button class="btn btn-quiet" id="blend-dismiss">Not now</button>
@@ -165,7 +167,7 @@
       </div>
       <ul class="fs-list" id="fs-list" role="listbox" aria-label="Folders"></ul>
       <footer class="dialog-foot">
-        <span class="hint" id="fs-hint">Folders marked Brew contain a brew.yaml.</span>
+        <span class="hint" id="fs-hint">Folders marked Brew contain a brew.yaml. .brew files can be imported.</span>
         <button type="button" class="btn btn-primary" id="fs-open" disabled>Open</button>
       </footer>
     </form>

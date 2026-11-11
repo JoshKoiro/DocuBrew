@@ -6,7 +6,7 @@ Markdown + reusable CSS styles → print-ready PDFs, with a live, paginated prev
 
 Write in Markdown (in any editor), style with layered CSS **Blends**, and see the printed pages update every time you save. Export to PDF with page numbers, running headers and footers handled by standard CSS Paged Media.
 
-Status: **Phase 4** (core loop, editing, visual styling, templates and the Blend Editor). See [PLAN.md](PLAN.md) for the roadmap and [docs/DECISIONS.md](docs/DECISIONS.md) for why things are the way they are.
+Status: **Phase 5 — all planned phases built** (core loop, editing, visual styling, templates, the Blend Editor, `.brew` files and batch builds). See [PLAN.md](PLAN.md) for the roadmap and [docs/DECISIONS.md](docs/DECISIONS.md) for why things are the way they are.
 
 ## Quick start
 
@@ -36,6 +36,7 @@ On first run DocuBrew creates its workspace at `~/Documents/DocuBrew/` with the 
 
 - **Blend Editor.** Click a Blend in the *Blend Library* to edit it. The preview shows the **specimen** — a built-in document with every element and template — or any of your Brews (*Preview with*). Every stylesheet layer is listed; ones the Blend doesn't have yet show *empty* and are created when you first save. The inspector works here too, writing *All …* rules to the layer you pick. **Release version…** bumps the version and records a changelog entry in `blend.yaml`. **+ New Blend** starts one that builds on another. **← Back to document** returns to your Brew.
 - **Blend updates.** When a Brew's Blend copy differs from the Library, a banner offers **Review changes** (a file-by-file diff) and **Update**. Updating never touches your content or `overrides.css`. If the copy was edited by hand, the banner says so first.
+- **Sharing (`.brew` files).** **Export .brew** saves the whole Brew — content, images, `overrides.css` and its own copy of the Blend — as one file in `dist/`, ready to email or archive (`dist/` itself and `.git` are left out). To open one, pick it in **Open** (it's listed with a *.brew file* tag) or drag it onto the app. It's unpacked into your workspace as a new Brew; if that folder name is taken it becomes `name-2`. If the Brew uses a Blend you don't have, it still renders from its own copy, and the banner offers **Add Blend to Library**.
 - **Samples.** *+ Add sample Brews* (or `docubrew sample`) puts back any bundled sample you've deleted.
 
 Shortcuts: I inspect · Esc stop inspecting · Ctrl+S save · Ctrl+E export PDF · Ctrl+O open Brew · Ctrl+\ toggle editor · Ctrl+Alt+N new Brew.
@@ -91,6 +92,8 @@ Text can use variables: this applies to a {{ machine.example }}.
 ```
 
 A chapter with a `title` gets the Blend's chapter-opener template. Leave `title` out (or set `template: none`) for a plain page.
+
+Titles can use variables too: `title: "Care & Service Record — {{ machine.year }} {{ machine.make }} {{ machine.model }}"`.
 
 ### Table of contents
 
@@ -159,6 +162,27 @@ docubrew sample                   # add back any deleted sample Brews
 docubrew blend status             # which Brews' Blend copies differ from the Library
 docubrew blend update path/to/brew
 docubrew blend reset typewriter-sop   # replace a Library Blend with the version bundled with DocuBrew
+docubrew pack path/to/brew        # save as one .brew file (in its dist/, or -o file.brew)
+docubrew unpack file.brew         # import into the workspace (--name folder, --into dir)
+```
+
+### Batch builds
+
+Build many PDFs from one Brew — e.g. a care sheet for every machine in a list:
+
+```bash
+docubrew build path/to/care-sheet --data machines.csv --out-dir out \
+  --name "{{machine.year}} {{machine.make}} {{machine.model}} - {{machine.serial}}"
+```
+
+- `--data` takes a `.csv` (header row; dotted names like `machine.serial` become nested variables), a `.yaml`/`.json` list, or an object with a `records:` list. Each record is merged over `brew.yaml`'s variables and makes one PDF.
+- `--set key=value` overrides a variable for every PDF (repeatable): `--set organization="The Creative Nerd Co."`. Values like `[a, b]` or `42` are read as YAML.
+- `--name` sets file names from variables; without it, files are named from the title plus the record number.
+- `--out-dir` puts every PDF in one folder; without it they go to the Brew's `dist/`.
+
+```csv
+machine.make,machine.model,machine.year,machine.serial,owner,workPerformed
+Royal,Safari,1964,5123456,"Smith, Jane","[Cleaned, New ribbon]"
 ```
 
 Options: `--workspace <dir>` (or `DOCUBREW_WORKSPACE`), `--port <n>` (default 4747), `--no-open`, `-o out.pdf`.

@@ -40,6 +40,15 @@ export const api = {
   getStyle: (selector, file) => request('GET', `/api/style?selector=${encodeURIComponent(selector)}${file ? `&file=${encodeURIComponent(file)}` : ''}`),
   setStyle: (selector, set, file) => request('POST', '/api/style', { selector, set, file }),
   samples: () => request('POST', '/api/samples'),
+  pack: () => request('POST', '/api/pack'),
+  importPath: (path) => request('POST', '/api/import-path', { path }),
+  importFile: async (file) => {
+    const res = await fetch(`/api/import?name=${encodeURIComponent(file.name.replace(/\.brew$/i, ''))}`, { method: 'POST', body: file });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `Import failed (${res.status})`);
+    return data;
+  },
+  adoptBlend: () => request('POST', '/api/blend/adopt'),
   allBlends: () => request('GET', '/api/blends?all=1'),
   blendStatus: () => request('GET', '/api/blend/status'),
   blendDiff: () => request('GET', '/api/blend/diff'),

@@ -133,6 +133,8 @@ function syncPreview() {
 const altFromPath = (p) => p.split('/').pop().replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').replace(/^\w/, (c) => c.toUpperCase());
 
 async function insertImages(files, file, afterLine) {
+  const brewFiles = files.filter((f) => /\.brew$/i.test(f.name));
+  if (brewFiles.length) return importBrewFiles(brewFiles);
   if (state.mode !== 'brew') return toast('Images go into a Brew. Open a document to add them.', true);
   const images = files.filter((f) => /^image\//.test(f.type) || /\.(png|jpe?g|gif|webp|svg|avif)$/i.test(f.name));
   if (!images.length) return toast('Only image files can be dropped.', true);
@@ -157,9 +159,62 @@ async function insertImages(files, file, afterLine) {
   }
 }
 
-// Never let a stray drop navigate the app away.
+// Never let a stray drop navigate the app away. A .brew dropped anywhere is imported.
 window.addEventListener('dragover', (e) => e.preventDefault());
-window.addEventListener('drop', (e) => e.preventDefault());
+window.addEventListener('drop', (e) => {
+  e.preventDefault();
+  const files = [...(e.dataTransfer?.files || [])].filter((f) => /\.brew$/i.test(f.name));
+  if (files.length) importBrewFiles(files);
+});
+
+// ─── .brew files ───
+async function importBrewFiles(files) {
+  for (const file of files) {
+    try {
+      await session.flush();
+      const info = await api.importFile(file);
+      await afterImport(info);
+    } catch (err) {
+      notify({ title: `Couldn't import ${file.name}`, body: [err.message], error: true });
+    }
+  }
+}
+
+async function afterImport(info) {
+  await loadSidebar();
+  await setBrew(info);
+  notify({
+    title: 'Brew imported',
+    body: [info.title, el('span', { class: 'toast-path', title: info.path }, info.renamed ? `Saved as ${info.folder}/ (that name was taken)` : `${info.folder}/`)],
+    actions: [el('button', { class: 'btn btn-toast', onclick: () => api.reveal(null, info.path).catch((e) => toast(e.message, true)) }, 'Show in folder')],
+    timeout: 12000,
+  });
+}
+
+async function exportBrew() {
+  if (state.mode !== 'brew' || !state.brew) return;
+  const btn = $('#btn-pack');
+  btn.classList.add('is-busy');
+  try {
+    await session.flush();
+    const r = await api.pack();
+    const kb = r.bytes > 1024 * 1024 ? `${(r.bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.round(r.bytes / 1024)} KB`;
+    notify({
+      title: '.brew exported',
+      body: [`${r.files} files · ${kb} — content, images and its Blend, ready to send`, el('span', { class: 'toast-path', title: r.file }, r.file.split(/[\\/]/).slice(-3).join('/'))],
+      actions: [
+        el('button', { class: 'btn btn-toast', onclick: () => api.reveal(null, r.file, true).catch((e) => toast(e.message, true)) }, 'Show in folder'),
+        el('a', { class: 'btn btn-toast', href: r.url, download: '', style: 'display:inline-grid;place-items:center;text-decoration:none' }, 'Download'),
+      ],
+      timeout: 15000,
+    });
+  } catch (err) {
+    notify({ title: 'Export failed', body: [err.message], error: true });
+  } finally {
+    btn.classList.remove('is-busy');
+  }
+}
+$('#btn-pack').onclick = exportBrew;
 
 // ─── Sidebar: files ───
 async function loadFiles() {
@@ -468,14 +523,16 @@ async function checkBlendStatus() {
   try { s = await api.blendStatus(); } catch { return; }
   state.blendStatus = s;
   if (s.state === 'missing') {
-    $('#blend-banner-text').textContent = `This Brew's Blend "${s.source}" isn't in your Blend Library. The Brew still renders from its own copy.`;
-    banner.querySelectorAll('.banner-actions .btn:not(#blend-dismiss)').forEach((b) => (b.hidden = true));
+    const key = `docubrew.dismiss:${state.brew.path}`;
+    if (store.get(key, null) === `missing:${s.source}`) return;
+    $('#blend-banner-text').textContent = `This Brew uses the Blend "${s.source}", which isn't in your Blend Library. It renders fine from its own copy — add it to your Library to reuse it.`;
+    banner.querySelectorAll('.banner-actions .btn').forEach((b) => (b.hidden = !['blend-adopt', 'blend-dismiss'].includes(b.id)));
   } else if (s.state === 'out-of-date') {
     const key = `docubrew.dismiss:${state.brew.path}`;
     if (store.get(key, null) === s.libraryHash) return;
     const what = s.version === s.libraryVersion ? `${s.name} has changed in your Blend Library since this Brew copied it.` : `${s.name} ${s.libraryVersion} is in your Blend Library — this Brew uses ${s.version}.`;
     $('#blend-banner-text').textContent = `${what}${s.locallyModified ? ' This Brew\'s copy was also edited by hand; updating replaces those edits.' : ''}`;
-    banner.querySelectorAll('.banner-actions .btn').forEach((b) => (b.hidden = false));
+    banner.querySelectorAll('.banner-actions .btn').forEach((b) => (b.hidden = b.id === 'blend-adopt'));
   } else return;
   if (state.mode === 'brew') banner.hidden = false;
 }
@@ -527,8 +584,18 @@ function patchView(patch) {
 $('#blend-review').onclick = reviewBlend;
 $('#blend-update').onclick = updateBlend;
 $('#diff-update').onclick = updateBlend;
+$('#blend-adopt').onclick = async () => {
+  try {
+    const r = await api.adoptBlend();
+    $('#blend-banner').hidden = true;
+    await loadSidebar();
+    toast(`Added ${r.blend.name} to your Blend Library.`);
+  } catch (err) { toast(err.message, true); }
+};
 $('#blend-dismiss').onclick = () => {
-  if (state.blendStatus?.libraryHash) store.set(`docubrew.dismiss:${state.brew.path}`, state.blendStatus.libraryHash);
+  const s = state.blendStatus;
+  if (s?.state === 'missing') store.set(`docubrew.dismiss:${state.brew.path}`, `missing:${s.source}`);
+  else if (s?.libraryHash) store.set(`docubrew.dismiss:${state.brew.path}`, s.libraryHash);
   $('#blend-banner').hidden = true;
 };
 
@@ -627,7 +694,11 @@ $('#btn-samples').onclick = async () => {
 };
 
 // ─── Wire up ───
-const openDialog = createOpenDialog({ workspace: () => state.workspace, onOpen: openBrew });
+const openDialog = createOpenDialog({
+  workspace: () => state.workspace,
+  onOpen: openBrew,
+  onImport: async (path) => { await session.flush(); await afterImport(await api.importPath(path)); },
+});
 const newDialog = createNewDialog({
   onCreate: async (data) => {
     await session.flush();

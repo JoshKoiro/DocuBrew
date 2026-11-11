@@ -1,6 +1,6 @@
 {
   "name": "docubrew",
-  "version": "0.1.0",
+  "version": "0.5.0",
   "description": "Markdown + reusable CSS Blends → print-ready PDFs, with a live browser preview.",
   "main": "src/server/server.js",
   "scripts": {
@@ -31,6 +31,7 @@
     "@fontsource/inter-tight": "^5.3.0",
     "chokidar": "^6.0.0",
     "diff": "^9.0.0",
+    "fflate": "^0.8.3",
     "markdown-it": "^15.0.3",
     "markdown-it-attrs": "^5.0.1",
     "markdown-it-container": "^4.0.0",

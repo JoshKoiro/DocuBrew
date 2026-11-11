@@ -74,6 +74,26 @@ export async function resetBundledBlend(ws, id) {
   return describeBlend(ws, id);
 }
 
+/**
+ * A Brew from someone else may use a Blend you don't have. Add the Brew's copy to your Library
+ * (as a standalone Blend — it's already flattened) and re-link the Brew to it.
+ */
+export async function adoptBrewBlend(ws, brewDir) {
+  const blendCopy = path.join(brewDir, BLEND_DIR);
+  if (!(await exists(path.join(blendCopy, 'blend.yaml')))) throw new Error('This Brew has no Blend copy to add.');
+  const brewManifest = YAML.parse(await fs.readFile(path.join(brewDir, BREW_FILE), 'utf8'));
+  const id = (typeof brewManifest.blend === 'string' ? brewManifest.blend : brewManifest.blend?.source) || slugify(path.basename(brewDir));
+  const dest = path.join(libraryDir(ws), id);
+  if (await exists(dest)) throw new Error(`Your Library already has a Blend named "${id}".`);
+  await copyDir(blendCopy, dest);
+  const manifest = YAML.parse((await fs.readFile(path.join(dest, 'blend.yaml'), 'utf8'))) || {};
+  delete manifest.flattenedFrom;
+  manifest.description = manifest.description || `Added from ${path.basename(brewDir)}`;
+  await fs.writeFile(path.join(dest, 'blend.yaml'), YAML.stringify(manifest));
+  await attachBlend(ws, brewDir, id);
+  return describeBlend(ws, id);
+}
+
 /** Start a new Library Blend, optionally extending another. */
 export async function createBlend(ws, { name, extends: parent, description = '' }) {
   if (!name?.trim()) throw new Error('A name is required.');

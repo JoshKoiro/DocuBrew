@@ -1,4 +1,4 @@
-title: Care & Service Record — Royal Safari
+title: "Care & Service Record — {{ machine.year }} {{ machine.make }} {{ machine.model }}"
 subtitle: How to keep this machine typing well, and what was done to it.
 revision: A
 date: 2026-11-10

@@ -3,7 +3,7 @@
 > Markdown + CSS in, print-ready PDF out. A local, browser-based workbench for
 > producing consistently styled SOPs, manuals and books without Word or InDesign.
 
-Status: **Phase 4 built** · Last updated: 2026-11-10 · Decisions log: [docs/DECISIONS.md](docs/DECISIONS.md)
+Status: **Phases 1–5 built** (v0.5.0) · Last updated: 2026-11-10 · Decisions log: [docs/DECISIONS.md](docs/DECISIONS.md)
 
 ---
 
@@ -304,11 +304,11 @@ Same design language as joshkoiro.github.io: flat, grid-based, hairline rules, n
 
 | Phase | Delivers | Done when |
 |---|---|---|
-| **1. Core loop** | Workspace + Brew folders, Blend copy-in, layered CSS, markdown pipeline with chapter files, Paged.js preview, live refresh on any save, page numbers + headers/footers, PDF export, app shell in the UI design language, `typewriter-base` + `typewriter-sop` Blends | An SOP edited in VS Code refreshes in the browser and exports a clean PDF |
-| **2. Editing** | CodeMirror editors, source-line mapping, scroll sync, image drag and drop, conflict prompts | A Brew can be built start to finish without leaving the browser |
-| **3. Visual editor** | Hover/select, property panel, presets, two edit scopes (Document Editor) | Images can be placed and sized without opening CSS |
-| **4. Templates, variables, Blend Editor** | Title page, chapter openers, TOC with page numbers, `{{variables}}`, Blend `extends`, out-of-date prompt with diff, Blend Editor mode with specimen, `typewriter-care` Blend | A care sheet for a new machine takes only a new `brew.yaml` |
-| **5. Packaging & CLI** | `.brew` import/export, full CLI, batch builds | A `.brew` file round-trips to another machine and renders identically |
+| **1. Core loop** ✓ | Workspace + Brew folders, Blend copy-in, layered CSS, markdown pipeline with chapter files, Paged.js preview, live refresh on any save, page numbers + headers/footers, PDF export, app shell in the UI design language, `typewriter-base` + `typewriter-sop` Blends | An SOP edited in VS Code refreshes in the browser and exports a clean PDF |
+| **2. Editing** ✓ | CodeMirror editors, source-line mapping, scroll sync, image drag and drop, conflict prompts | A Brew can be built start to finish without leaving the browser |
+| **3. Visual editor** ✓ | Hover/select, property panel, presets, two edit scopes (Document Editor) | Images can be placed and sized without opening CSS |
+| **4. Templates, variables, Blend Editor** ✓ | Title page, chapter openers, TOC with page numbers, `{{variables}}`, Blend `extends`, out-of-date prompt with diff, Blend Editor mode with specimen, `typewriter-care` Blend | A care sheet for a new machine takes only a new `brew.yaml` |
+| **5. Packaging & CLI** ✓ | `.brew` import/export, full CLI, batch builds | A `.brew` file round-trips to another machine and renders identically |
 
 ---
 
@@ -326,6 +326,13 @@ Same design language as joshkoiro.github.io: flat, grid-based, hairline rules, n
 
 Both Blends extend a shared `typewriter-base` (brand tokens, fonts, base elements).
 
-## 10. Open questions
+## 10. After Phase 5 — candidate next steps
+
+- Server mode (bind address + authentication) for use from other machines on the network (§8).
+- Data-driven documents inside the app: pick a record from a data file and preview it, not only in the CLI.
+- Paged.js 2.0 upgrade behind the renderer adapter, when it's released.
+- Footnotes at the foot of the page (Paged.js `float: footnote`) instead of the end of each chapter.
+
+## 11. Open questions
 
 1. **License for a public release.** Repo is currently GPL-3.0. Decide before any public or paid release (compatible with Paged.js, which is MIT).

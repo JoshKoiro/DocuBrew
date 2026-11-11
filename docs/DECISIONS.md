@@ -4,6 +4,21 @@ Short records of decisions that shape DocuBrew. Newest first. Each entry: contex
 
 ---
 
+## D-025 · Titles may use variables
+**Date:** 2026-11-11
+**Decision:** `title` and `subtitle` in brew.yaml may contain `{{ variable }}` placeholders, filled after any CLI overrides.
+**Consequences:** One care-sheet Brew can title each batch PDF after its machine; the sidebar shows the title filled from brew.yaml's own variables.
+
+## D-024 · Batch builds merge records over brew.yaml variables
+**Date:** 2026-11-11
+**Decision:** `docubrew build` takes `--data` (CSV with a header row, YAML or JSON list) for one PDF per record, `--set key=value` for overrides, `--name` for file-name patterns and `--out-dir`. Dotted CSV headers become nested variables; YAML-looking values (`[a, b]`, numbers) are parsed. File names use raw values and drop characters Windows doesn't allow.
+**Consequences:** Generating many documents needs no code. Kept in the CLI for now; the app previews brew.yaml's own values.
+
+## D-023 · .brew format and safe import
+**Date:** 2026-11-11
+**Decision:** A `.brew` is a zip with `manifest.json` (`format: docubrew-brew`, `formatVersion: 1`, name, title, Blend, DocuBrew version) and the Brew's files, minus `dist/`, `.git` and tool folders. Import checks everything before writing: no absolute, drive-letter or `..` paths; at most 5,000 files and 1 GB unpacked; refuses newer format versions. It always creates a new folder (`name-2` on a clash) and never overwrites. A Brew whose Blend isn't in the Library renders from its copy and can add it to the Library ("adopt").
+**Consequences:** A received .brew can't write outside the workspace or replace existing work. Export goes to the Brew's `dist/`, which is excluded from packing, so exports never nest.
+
 ## D-022 · Bundled Blends are never overwritten automatically; `blend reset` restores them
 **Date:** 2026-11-11
 **Decision:** New DocuBrew releases don't change a workspace's Library. `docubrew blend reset <id>` replaces a Library Blend with the bundled version; Brews then see the normal update prompt.

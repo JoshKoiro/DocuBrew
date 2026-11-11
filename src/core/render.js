@@ -9,10 +9,10 @@ import MarkdownIt from 'markdown-it';
 import markdownItAttrs from 'markdown-it-attrs';
 import markdownItContainer from 'markdown-it-container';
 import markdownItFootnote from 'markdown-it-footnote';
-import { loadBrew, BLEND_DIR, OVERRIDES_FILE } from './brew.js';
+import { loadBrew, expandText, BLEND_DIR, OVERRIDES_FILE } from './brew.js';
 import { LAYERS, LAYER_ORDER, FONTS_FILE } from './blend.js';
 import { renderTemplate } from './template.js';
-import { escapeHtml, exists, getPath, splitFrontMatter } from './util.js';
+import { escapeHtml, exists, getPath, splitFrontMatter, deepMerge } from './util.js';
 
 const CALLOUTS = {
   note: 'Note',
@@ -213,6 +213,16 @@ export async function renderBrew(dir, opts = {}) {
   // The Blend Editor renders a Brew's content with a live Library Blend instead of the Brew's copy.
   const blendDir = opts.blendDir || path.join(dir, BLEND_DIR);
   const brew = await loadBrew(dir, { blendDir });
+  // Variable overrides (CLI --set / --data): merged over brew.yaml's variables.
+  if (opts.vars && Object.keys(opts.vars).length) {
+    brew.vars = deepMerge(brew.vars, opts.vars);
+    for (const k of ['title', 'subtitle', 'author', 'revision', 'date']) if (k in opts.vars) brew.vars.doc[k] = opts.vars[k];
+  }
+  // Titles may use variables: "Care Record — {{ machine.model }}"
+  for (const k of ['title', 'subtitle']) {
+    brew.vars[k] = expandText(brew.vars[k], brew.vars);
+    brew.vars.doc[k] = expandText(brew.vars.doc[k], brew.vars);
+  }
   const md = createMarkdown();
   const usedIds = new Set();
   const tocEntries = [];

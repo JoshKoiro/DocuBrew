@@ -25,6 +25,7 @@ export const MIME = {
   '.ttf': 'font/ttf',
   '.otf': 'font/otf',
   '.pdf': 'application/pdf',
+  '.brew': 'application/zip',
 };
 
 /** Resolve `rel` inside `root`, or return null if it escapes. */
@@ -46,9 +47,12 @@ export async function sendFile(res, file, { transform, headers = {} } = {}) {
     return false;
   }
   if (transform) data = transform(data.toString('utf8'));
+  const ext = path.extname(file).toLowerCase();
   res.writeHead(200, {
-    'content-type': MIME[path.extname(file).toLowerCase()] || 'application/octet-stream',
+    'content-type': MIME[ext] || 'application/octet-stream',
     'cache-control': 'no-store',
+    // .brew files are for saving, not viewing
+    ...(ext === '.brew' ? { 'content-disposition': `attachment; filename="${path.basename(file).replace(/"/g, '')}"` } : {}),
     ...headers,
   });
   res.end(data);

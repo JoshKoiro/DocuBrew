@@ -12,7 +12,8 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { WebSocketServer } from 'ws';
 import { watch } from 'chokidar';
-import { APP_ROOT, ensureWorkspace, listBrews, listLibrary, createBrew, libraryDir, attachBlend, restoreSamples, createBlend, releaseBlend, describeBlend } from '../core/workspace.js';
+import { APP_ROOT, ensureWorkspace, listBrews, listLibrary, createBrew, libraryDir, attachBlend, restoreSamples, createBlend, releaseBlend, describeBlend, adoptBrewBlend } from '../core/workspace.js';
+import { packBrew, unpackBrew, BREW_EXT } from '../core/brewfile.js';
 import { isBrew, describeBrew, DIST_DIR, BLEND_DIR } from '../core/brew.js';
 import { renderBrew, wrapLayer } from '../core/render.js';
 import { flattenBlend, resolveChain } from '../core/blend.js';
@@ -32,6 +33,7 @@ const VENDOR_DIRS = {
   '/vendor/fonts/inter-tight/': path.join(NM, '@fontsource', 'inter-tight'),
 };
 export const SPECIMEN_DIR = path.join(APP_ROOT, 'specimen');
+const MAX_BREW_BYTES = 512 * 1024 * 1024;
 
 export async function startServer({ workspace, port = 4747, host = '127.0.0.1', brew = null, quiet = false } = {}) {
   await ensureWorkspace(workspace);
@@ -44,6 +46,7 @@ export async function startServer({ workspace, port = 4747, host = '127.0.0.1', 
     blendId: null,      // blend mode: the Library Blend being edited
     previewWith: null,  // blend mode: folder whose content previews the Blend (specimen or a Brew)
     flatDir: null,      // blend mode: current flattened copy
+    varsOverride: null, // CLI batch builds: variables merged over brew.yaml's
     watcher: null,
   };
   const sockets = new Set();
@@ -144,6 +147,22 @@ export async function startServer({ workspace, port = 4747, host = '127.0.0.1', 
       return openBrew(info.path);
     },
     'POST /api/samples': async () => restoreSamples(workspace),
+
+    // .brew files
+    'POST /api/pack': async () => {
+      const r = await packBrew(requireBrew());
+      log(`Packed ${r.file}`);
+      return { ...r, url: `/preview/${DIST_DIR}/${encodeURIComponent(path.basename(r.file))}` };
+    },
+    'POST /api/import': async (_b, url, req) => importBrew(await readBody(req, MAX_BREW_BYTES), url.searchParams.get('name')),
+    'POST /api/import-path': async (body) => {
+      if (!String(body.path || '').toLowerCase().endsWith(BREW_EXT)) throw new HttpError(400, 'Choose a .brew file.');
+      return importBrew(await fs.readFile(body.path), null);
+    },
+    'POST /api/blend/adopt': async () => {
+      const b = await adoptBrewBlend(workspace, requireBrew());
+      return { blend: b, status: await blendStatus(library, state.brewDir) };
+    },
     'GET /api/fs': async (_b, url) => browse(url.searchParams.get('path') || workspace),
     'POST /api/export': async () => {
       const dir = requireBrew();
@@ -201,6 +220,13 @@ export async function startServer({ workspace, port = 4747, host = '127.0.0.1', 
     },
   };
 
+  async function importBrew(buffer, name) {
+    const info = await unpackBrew(buffer, workspace, { name: name || undefined });
+    log(`Imported ${info.path}`);
+    await openBrew(info.path);
+    return info;
+  }
+
   async function handle(req, res) {
     const url = new URL(req.url, 'http://localhost');
     const p = url.pathname;
@@ -208,7 +234,7 @@ export async function startServer({ workspace, port = 4747, host = '127.0.0.1', 
     const route = api[`${req.method} ${p}`];
     if (route) {
       try {
-        const raw = p === '/api/images';
+        const raw = p === '/api/images' || p === '/api/import';
         const body = !raw && (req.method === 'POST' || req.method === 'PUT') ? await readJson(req) : {};
         return json(res, 200, await route(body, url, req));
       } catch (err) {
@@ -259,7 +285,7 @@ export async function startServer({ workspace, port = 4747, host = '127.0.0.1', 
         return html(res, 200, doc);
       }
       if (!state.brewDir) return html(res, 200, errorPage('No Brew is open.'));
-      const { html: doc } = await renderBrew(state.brewDir, { mode });
+      const { html: doc } = await renderBrew(state.brewDir, { mode, vars: state.varsOverride });
       html(res, 200, doc);
     } catch (err) {
       html(res, 200, errorPage(err.message));

@@ -16,7 +16,7 @@ function el(tag, attrs = {}, ...children) {
 
 // ─── Open Brew: DocuBrew's own folder browser (browsers can't see real paths) ───
 
-export function createOpenDialog({ workspace, onOpen }) {
+export function createOpenDialog({ workspace, onOpen, onImport }) {
   const dlg = $('#dlg-open');
   const list = $('#fs-list');
   const input = $('#fs-path');
@@ -33,10 +33,10 @@ export function createOpenDialog({ workspace, onOpen }) {
     }
     input.value = listing.path;
     select(listing.isBrew ? { path: listing.path, isBrew: true, self: true } : null);
+    const actOn = (e) => (e.type === 'brewfile' ? finishImport(e.path) : e.isBrew ? finish(e.path) : go(e.path));
     list.replaceChildren(
-      ...(listing.entries.filter((e) => e.type === 'dir').length
+      ...(listing.entries.length
         ? listing.entries
-            .filter((e) => e.type === 'dir')
             .map((e) =>
               el(
                 'li',
@@ -44,13 +44,13 @@ export function createOpenDialog({ workspace, onOpen }) {
                   tabindex: 0,
                   role: 'option',
                   onclick: (ev) => { select(e); markSelected(ev.currentTarget); },
-                  ondblclick: () => (e.isBrew ? finish(e.path) : go(e.path)),
+                  ondblclick: () => actOn(e),
                   onkeydown: (ev) => {
-                    if (ev.key === 'Enter') e.isBrew ? finish(e.path) : go(e.path);
+                    if (ev.key === 'Enter') actOn(e);
                   },
                 },
-                el('span', { class: 'fs-name' }, e.name),
-                e.isBrew ? el('span', { class: 'tag' }, 'Brew') : null
+                el('span', { class: `fs-name ${e.type === 'brewfile' ? 'is-file' : ''}` }, e.name),
+                e.isBrew ? el('span', { class: 'tag' }, 'Brew') : e.type === 'brewfile' ? el('span', { class: 'tag tag-quiet' }, '.brew file') : null
               )
             )
         : [el('li', { class: 'fs-empty' }, 'No folders here.')])
@@ -64,8 +64,21 @@ export function createOpenDialog({ workspace, onOpen }) {
 
   function select(entry) {
     selected = entry;
-    openBtn.disabled = !(entry && entry.isBrew);
-    openBtn.textContent = entry && !entry.isBrew ? 'Not a Brew' : 'Open';
+    const isFile = entry?.type === 'brewfile';
+    openBtn.disabled = !(entry && (entry.isBrew || isFile));
+    openBtn.textContent = isFile ? 'Import' : entry && !entry.isBrew ? 'Not a Brew' : 'Open';
+  }
+
+  async function finishImport(path) {
+    try {
+      openBtn.disabled = true;
+      openBtn.textContent = 'Importing…';
+      await onImport(path);
+      dlg.close();
+    } catch (err) {
+      $('#fs-hint').textContent = err.message;
+      select(selected);
+    }
   }
 
   async function finish(path) {
@@ -80,11 +93,14 @@ export function createOpenDialog({ workspace, onOpen }) {
   $('#fs-up').onclick = () => listing?.parent && go(listing.parent);
   $('#fs-home').onclick = () => go(workspace());
   input.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); go(input.value.trim()); } };
-  openBtn.onclick = () => selected?.isBrew && finish(selected.path);
+  openBtn.onclick = () => {
+    if (selected?.type === 'brewfile') finishImport(selected.path);
+    else if (selected?.isBrew) finish(selected.path);
+  };
 
   return {
     show() {
-      $('#fs-hint').textContent = 'Folders marked Brew contain a brew.yaml. Double-click to open.';
+      $('#fs-hint').textContent = 'Double-click a Brew to open it, or a .brew file to import it into your workspace.';
       dlg.showModal();
       go(workspace());
     },

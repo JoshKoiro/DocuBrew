@@ -2,7 +2,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import YAML from 'yaml';
-import { exists, deepMerge } from './util.js';
+import { exists, deepMerge, getPath } from './util.js';
 import { readBlendManifest } from './blend.js';
 
 export const BREW_FILE = 'brew.yaml';
@@ -62,13 +62,22 @@ export async function loadBrew(dir, { blendDir = path.join(dir, BLEND_DIR) } = {
   return { dir, manifest, blend, page, vars: doc, chapters };
 }
 
+/** Fill {{ variable }} placeholders in a plain-text field such as the title (no HTML escaping). */
+export function expandText(text, vars) {
+  if (typeof text !== 'string' || !text.includes('{{')) return text;
+  return text.replace(/{{\s*([\w.@-]+)\s*}}/g, (whole, key) => {
+    const v = getPath(vars, key);
+    return v === undefined || v === null || typeof v === 'object' ? '' : String(v);
+  }).replace(/\s{2,}/g, ' ').trim();
+}
+
 /** A short description for the UI. */
 export async function describeBrew(dir) {
   const m = await readBrewManifest(dir);
   return {
     path: dir,
     folder: path.basename(dir),
-    title: m.title || path.basename(dir),
+    title: expandText(m.title, m.variables || {}) || path.basename(dir),
     blend: m.blend || null,
     chapters: (await listChapters(dir)).length,
   };
