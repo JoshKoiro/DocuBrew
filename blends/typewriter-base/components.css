@@ -70,7 +70,7 @@ h2, h3, .callout, table, pre { clear: both; }
 .tools ul { columns: 2; column-gap: calc(var(--unit) * 1.5); margin: 0; }
 .tools li { break-inside: avoid; }
 
-/* Spec table:  add {.spec} on the line after a table */
+/* Spec table:  after a table, a blank line then {.spec} on its own line */
 table.spec td:first-child {
   width: 32%;
   font-size: var(--size-tiny);

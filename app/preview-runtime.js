@@ -29,8 +29,9 @@
     style.dataset.docubrew = 'screen';
     style.textContent = `
       html, body { background: var(--db-canvas, #e4e3de); margin: 0; }
-      .pagedjs_pages { display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 32px 0 64px; }
+      .pagedjs_pages { display: flex; flex-direction: column; align-items: safe center; gap: 24px; padding: 32px 0 64px; }
       .pagedjs_page { background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.08); margin: 0 !important; }
+      .db-inspecting, .db-inspecting * { cursor: crosshair !important; }
     `;
     document.head.appendChild(style);
   }

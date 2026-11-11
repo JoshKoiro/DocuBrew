@@ -6,7 +6,19 @@ async function request(method, url, body) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `${method} ${url} failed (${res.status})`);
+  if (!res.ok) {
+    const err = new Error(data.error || `${method} ${url} failed (${res.status})`);
+    err.status = res.status;
+    err.data = data;
+    throw err;
+  }
+  return data;
+}
+
+async function upload(file) {
+  const res = await fetch(`/api/images?name=${encodeURIComponent(file.name)}`, { method: 'POST', body: file });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Upload failed (${res.status})`);
   return data;
 }
 
@@ -18,7 +30,16 @@ export const api = {
   open: (path) => request('POST', '/api/open', { path }),
   create: (data) => request('POST', '/api/brews', data),
   exportPdf: () => request('POST', '/api/export'),
-  reveal: (app) => request('POST', '/api/reveal', { app }),
+  reveal: (app, path, select) => request('POST', '/api/reveal', { app, path, select }),
+  files: () => request('GET', '/api/files'),
+  file: (path) => request('GET', `/api/file?path=${encodeURIComponent(path)}`),
+  saveFile: (path, content, baseMtime) => request('PUT', '/api/file', { path, content, baseMtime }),
+  newChapter: (title) => request('POST', '/api/chapters', { title }),
+  uploadImage: upload,
+  presets: () => request('GET', '/api/presets'),
+  getStyle: (selector) => request('GET', `/api/style?selector=${encodeURIComponent(selector)}`),
+  setStyle: (selector, set) => request('POST', '/api/style', { selector, set }),
+  setAttrs: (body) => request('POST', '/api/attrs', body),
 };
 
 /** Live connection: calls onMessage for server events, reconnects with backoff. */

@@ -3,7 +3,7 @@
 > Markdown + CSS in, print-ready PDF out. A local, browser-based workbench for
 > producing consistently styled SOPs, manuals and books without Word or InDesign.
 
-Status: **Phase 1 built** · Last updated: 2026-11-10 · Decisions log: [docs/DECISIONS.md](docs/DECISIONS.md)
+Status: **Phase 3 built** · Last updated: 2026-11-10 · Decisions log: [docs/DECISIONS.md](docs/DECISIONS.md)
 
 ---
 

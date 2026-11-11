@@ -12,6 +12,8 @@ import { renderBrew, wrapLayer } from '../core/render.js';
 import { exportPdf } from '../core/pdf.js';
 import { slugify, escapeHtml } from '../core/util.js';
 import { safeJoin, sendFile } from './static.js';
+import { getPresets, getStyle, setStyle, getAttrs, setAttrs } from './styling.js';
+import { listBrewFiles, readBrewFile, writeBrewFile, createChapter, saveImage, readBody, HttpError, MAX_IMAGE_BYTES } from './files.js';
 
 const NM = path.join(APP_ROOT, 'node_modules');
 const VENDOR = {
@@ -81,13 +83,28 @@ export async function startServer({ workspace, port = 4747, host = '127.0.0.1', 
       log(`Exported ${out} (${result.pages} pages, ${result.ms} ms)`);
       return { ...result, url: `/preview/${DIST_DIR}/${encodeURIComponent(name)}` };
     },
+    'GET /api/files': async () => listBrewFiles(requireBrew()),
+    'GET /api/file': async (_b, url) => readBrewFile(requireBrew(), url.searchParams.get('path')),
+    'PUT /api/file': async (body) => writeBrewFile(requireBrew(), body.path, body.content, body.baseMtime),
+    'POST /api/chapters': async (body) => createChapter(requireBrew(), body.title),
+    'POST /api/images': async (_b, url, req) => saveImage(requireBrew(), url.searchParams.get('name') || '', await readBody(req, MAX_IMAGE_BYTES)),
+    'GET /api/presets': async () => getPresets(requireBrew()),
+    'GET /api/style': async (_b, url) => getStyle(requireBrew(), url.searchParams.get('selector') || ''),
+    'POST /api/style': async (body) => setStyle(requireBrew(), body.selector, body.set),
+    'GET /api/attrs': async (_b, url) => getAttrs(requireBrew(), Object.fromEntries(url.searchParams)),
+    'POST /api/attrs': async (body) => setAttrs(requireBrew(), body),
     'POST /api/reveal': async (body) => {
       const target = body.path || state.brewDir;
       if (!target) throw new Error('Nothing to reveal.');
-      reveal(target, body.app);
+      reveal(target, body.app, Boolean(body.select));
       return { ok: true };
     },
   };
+
+  function requireBrew() {
+    if (!state.brewDir) throw new HttpError(409, 'No Brew is open.');
+    return state.brewDir;
+  }
 
   async function handle(req, res) {
     const url = new URL(req.url, 'http://localhost');
@@ -96,10 +113,11 @@ export async function startServer({ workspace, port = 4747, host = '127.0.0.1', 
     const route = api[`${req.method} ${p}`];
     if (route) {
       try {
-        const body = req.method === 'POST' ? await readJson(req) : {};
-        return json(res, 200, await route(body, url));
+        const raw = p === '/api/images';
+        const body = !raw && (req.method === 'POST' || req.method === 'PUT') ? await readJson(req) : {};
+        return json(res, 200, await route(body, url, req));
       } catch (err) {
-        return json(res, 400, { error: err.message });
+        return json(res, err instanceof HttpError ? err.status : 400, { error: err.message, ...(err.data || {}) });
       }
     }
 
@@ -210,13 +228,14 @@ async function browse(target) {
   return { path: dir, parent: parent === dir ? null : parent, isBrew: await isBrew(dir), entries };
 }
 
-function reveal(target, app) {
-  const quoted = `"${target}"`;
+/** Open a folder in the OS file manager (or VS Code). With `select`, highlight a file in its folder. */
+function reveal(target, app, select = false) {
+  const quoted = `"${String(target).replace(/"/g, '')}"`;
   let cmd;
   if (app === 'code') cmd = `code ${quoted}`;
-  else if (process.platform === 'win32') cmd = `explorer ${quoted}`;
-  else if (process.platform === 'darwin') cmd = `open ${quoted}`;
-  else cmd = `xdg-open ${quoted}`;
+  else if (process.platform === 'win32') cmd = select ? `explorer /select,${quoted}` : `explorer ${quoted}`;
+  else if (process.platform === 'darwin') cmd = select ? `open -R ${quoted}` : `open ${quoted}`;
+  else cmd = `xdg-open "${select ? path.dirname(target) : target}"`;
   spawn(cmd, { shell: true, detached: true, stdio: 'ignore' }).on('error', () => {}).unref();
 }
 

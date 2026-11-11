@@ -41,7 +41,8 @@ export function createMarkdown() {
       const m = /^([a-z][\w-]*)\s*(.*)$/i.exec(tok.info.trim());
       const type = m[1].toLowerCase();
       const title = m[2];
-      const line = tok.map ? ` data-source-line="${tok.map[0] + 1 + (tok.meta?.offset || 0)}"` : '';
+      const off = tok.meta?.offset || 0;
+      const line = tok.map ? ` data-source-line="${tok.map[0] + 1 + off}" data-source-end="${tok.map[1] + off}"` : '';
       if (CALLOUTS[type]) {
         // remember the kind so the closing token renders </aside>
         const close = findContainerClose(tokens, idx);
@@ -84,6 +85,7 @@ function sourceLineRule(state) {
     if (!tok.map || tok.nesting === -1 || !tok.block) continue;
     if (tok.type === 'inline' || tok.type.startsWith('container_')) continue;
     tok.attrSet('data-source-line', String(tok.map[0] + 1 + offset));
+    tok.attrSet('data-source-end', String(tok.map[1] + offset)); // last line of the block, 1-based
   }
 }
 
@@ -100,10 +102,13 @@ function figureRule(md) {
       t[i].tag = t[i + 2].tag = 'figure';
       for (const name of ['class', 'id', 'style']) {
         const v = img.attrGet(name);
-        if (v != null) {
-          t[i].attrSet(name, v);
-          img.attrs = img.attrs.filter(([k]) => k !== name);
-        }
+        if (v == null) continue;
+        const existing = t[i].attrGet(name);
+        // classes/styles from "![..](..){.x}" and "![..](..) {.y}" combine; an id on the figure wins
+        if (existing == null) t[i].attrSet(name, v);
+        else if (name === 'class') t[i].attrSet(name, `${existing} ${v}`);
+        else if (name === 'style') t[i].attrSet(name, `${existing.replace(/;?\s*$/, ';')} ${v}`);
+        img.attrs = img.attrs.filter(([k]) => k !== name);
       }
       const title = img.attrGet('title');
       if (title) {
@@ -200,7 +205,7 @@ export async function renderBrew(dir, opts = {}) {
     const opener = wantsOpener ? renderTemplate(chapterTpl, ctx) : '';
     const classes = ['chapter', chapter.class].filter(Boolean).join(' ');
     chapters.push({
-      open: `<section class="${escapeHtml(classes)}" id="chapter-${i + 1}" data-source-file="${escapeHtml(rel)}"${wantsOpener ? ' data-opener' : ''}>`,
+      open: `<section class="${escapeHtml(classes)}" id="chapter-${i + 1}" data-source-file="${escapeHtml(rel)}" data-body-line="${front.offset + 1}"${wantsOpener ? ' data-opener' : ''}>`,
       body: `${opener}\n${body}`,
     });
   }

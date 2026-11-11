@@ -21,4 +21,5 @@ Fill in after each cleaning.
 | Procedure | {{ sop.number }} Rev {{ revision }} |
 | Date | |
 | Notes | |
+
 {.spec}

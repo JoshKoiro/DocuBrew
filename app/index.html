@@ -45,6 +45,18 @@
 
   <div class="layout">
     <aside class="side" id="side">
+      <section class="side-block files" id="files" hidden>
+        <h2 class="label">Files</h2>
+        <ul class="list file-list" id="file-list"></ul>
+        <form class="new-chapter" id="new-chapter" hidden>
+          <input type="text" name="chapterTitle" placeholder="Chapter title" autocomplete="off" aria-label="New chapter title">
+        </form>
+        <button class="btn btn-quiet add-chapter" id="btn-add-chapter" type="button">+ Chapter</button>
+        <details class="blend-files" id="blend-files">
+          <summary class="label">Blend copy · read-only</summary>
+          <ul class="list file-list" id="blend-file-list"></ul>
+        </details>
+      </section>
       <section class="side-block">
         <h2 class="label">Brews</h2>
         <ul class="list" id="brew-list"></ul>
@@ -62,16 +74,36 @@
     <main class="stage">
       <div class="toolbar">
         <div class="toolbar-left">
+          <button class="btn btn-quiet toggle is-on needs-brew" id="btn-editor" title="Show or hide the editor (Ctrl+\\)" disabled>Editor</button>
+          <button class="btn btn-quiet toggle is-on needs-brew" id="btn-sync" title="Scroll the preview with the editor" disabled>Sync</button>
           <span class="live" id="live" title="Connection to the DocuBrew server"><span class="live-dot"></span><span id="live-text">Connecting</span></span>
           <span class="meta" id="meta"></span>
         </div>
         <div class="toolbar-right zoom" role="group" aria-label="Zoom">
+          <button class="btn btn-quiet toggle needs-brew" id="btn-inspect" title="Inspect: click anything in the preview to style it (I, Esc to stop)" disabled>Inspect</button>
+          <span class="bar-sep" aria-hidden="true"></span>
           <button class="btn btn-quiet" id="zoom-out" aria-label="Zoom out">−</button>
           <button class="btn btn-quiet zoom-value" id="zoom-reset" title="Reset to 100%">100%</button>
           <button class="btn btn-quiet" id="zoom-in" aria-label="Zoom in">+</button>
-          <button class="btn btn-quiet" id="zoom-fit">Fit</button>
+          <button class="btn btn-quiet toggle" id="zoom-fit" title="Fit page width (follows window and editor size)">Fit</button>
         </div>
       </div>
+      <div class="work" id="work">
+      <section class="editor-pane" id="editor-pane" hidden>
+        <header class="editor-head">
+          <span class="editor-path" id="editor-path"></span>
+          <span class="editor-status" id="editor-status"></span>
+        </header>
+        <div class="conflict" id="conflict" hidden>
+          <p><strong id="conflict-file"></strong> changed on disk while you had unsaved edits here.</p>
+          <div class="conflict-actions">
+            <button class="btn" id="conflict-disk">Use disk version</button>
+            <button class="btn btn-primary" id="conflict-mine">Keep mine</button>
+          </div>
+        </div>
+        <div class="editor-host" id="editor-host"></div>
+      </section>
+      <div class="resizer" id="resizer" role="separator" aria-orientation="vertical" aria-label="Resize editor" tabindex="0" hidden></div>
       <div class="canvas" id="canvas">
         <div class="empty" id="empty" hidden>
           <p class="label">DocuBrew</p>
@@ -86,6 +118,19 @@
           <pre id="error-text"></pre>
           <p class="error-note">Showing the last good render. Fix the file and save to refresh.</p>
         </div>
+        <div class="drop-hint" id="drop-hint" hidden>Drop images into a chapter page — they're saved to images/ and linked where you drop them.</div>
+        <div class="drop-hint" id="inspect-hint" hidden>Click anything in the preview to style it · Esc to stop</div>
+      </div>
+      <aside class="inspector" id="inspector" hidden aria-label="Inspector">
+        <header class="insp-head">
+          <div class="insp-title">
+            <p class="label" id="insp-kind"></p>
+            <button class="insp-where" id="insp-where" title="Show in editor"></button>
+          </div>
+          <button class="btn btn-quiet btn-icon" id="insp-close" aria-label="Close inspector">×</button>
+        </header>
+        <div class="insp-body" id="insp-body"></div>
+      </aside>
       </div>
     </main>
   </div>

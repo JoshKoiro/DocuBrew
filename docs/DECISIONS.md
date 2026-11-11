@@ -4,6 +4,38 @@ Short records of decisions that shape DocuBrew. Newest first. Each entry: contex
 
 ---
 
+## D-018 · Attributes on lists and tables go on their own line after a blank line
+**Date:** 2026-11-10
+**Context:** markdown-it-attrs reads `{.spec}` directly under a table as an extra table row.
+**Decision:** For lists and tables, DocuBrew writes a blank line, then `{#id .class}` on its own line. Headings, paragraphs and figures get attributes at the end of their last line.
+**Consequences:** The sample SOP's spec table was fixed to this form. Workspaces seeded before this change still have the old sample.
+
+## D-017 · Inspector: presets in Markdown, properties in a managed section of overrides.css
+**Date:** 2026-11-10
+**Decision:**
+- Blend presets are applied as classes in the Markdown (`{.fig-right}`), so the consistent choice adds no CSS.
+- Property edits go to a marked section of `overrides.css`; everything outside it is the author's and is never rewritten.
+- "This element" adds a readable id to the Markdown on first edit (`{#fig-type-basket}`, `{#h-definitions}`) and styles that id; "All …" styles an element selector (`figure`, `p`, `h2`, `.callout-warning`, `.co-title`).
+- Template elements (title page, chapter openers) can only be styled by class.
+- Each new selection starts at "This element".
+**Consequences:** Every visual edit is visible and editable as plain text. Carrying "All …" between selections was tried and rejected — it silently restyled every element of the next kind clicked.
+
+## D-016 · Dropped images are linked relative to content/
+**Date:** 2026-11-10
+**Decision:** Images dropped into the app are saved to `images/` and written as `![Alt](../images/name.png)`. The renderer accepts both content-relative and Brew-relative paths.
+**Consequences:** The same Markdown previews correctly in VS Code and other editors. Identical re-drops reuse the existing file; a different file with the same name becomes `name-2.png`.
+
+## D-015 · Autosave with modification-time conflict check
+**Date:** 2026-11-10
+**Context:** Files are edited both in the browser and in external editors.
+**Decision:** The browser editor autosaves 600 ms after typing stops. Each save sends the file's modification time as loaded; if the file changed on disk since, the server refuses (409) and the app asks *Keep mine* / *Use disk version*. Unchanged buffers reload silently on external saves.
+**Consequences:** No lost edits from either side, and no save button to forget. The conflict window is small because of autosave.
+
+## D-014 · esbuild pre-bundle instead of Vite (revises D-010)
+**Date:** 2026-11-10
+**Decision:** CodeMirror 6 is bundled once with esbuild into `app/vendor/codemirror.js`, which is committed. No dev server.
+**Consequences:** `npm start` runs the app straight from source files; esbuild and CodeMirror are dev dependencies only needed to rebuild the bundle (`npm run build:vendor`).
+
 ## D-013 · Running values come from a hidden element in the first section
 **Date:** 2026-11-10
 **Context:** Page headers/footers need document values (title, SOP number, revision), but CSS margin boxes can't read variables. Paged.js supports `string-set`.

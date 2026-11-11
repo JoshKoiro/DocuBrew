@@ -6,7 +6,7 @@ Markdown + reusable CSS styles → print-ready PDFs, with a live, paginated prev
 
 Write in Markdown (in any editor), style with layered CSS **Blends**, and see the printed pages update every time you save. Export to PDF with page numbers, running headers and footers handled by standard CSS Paged Media.
 
-Status: **Phase 1** (core loop). See [PLAN.md](PLAN.md) for the roadmap and [docs/DECISIONS.md](docs/DECISIONS.md) for why things are the way they are.
+Status: **Phase 3** (core loop, editing, visual styling). See [PLAN.md](PLAN.md) for the roadmap and [docs/DECISIONS.md](docs/DECISIONS.md) for why things are the way they are.
 
 ## Quick start
 
@@ -18,6 +18,23 @@ npm start            # starts DocuBrew and opens your browser
 ```
 
 On first run DocuBrew creates its workspace at `~/Documents/DocuBrew/` with the Blend Library and a sample Brew. Open the sample, then edit any file in it with your editor — the preview refreshes on save.
+
+## Working in the app
+
+- **Edit anywhere.** Use the built-in editor or your own (VS Code etc.) — any save refreshes the preview. The **Folder** and **VS Code** buttons open the Brew folder.
+- **Editor.** Pick a file under *Files* in the sidebar. Changes autosave after a short pause (or press Ctrl+S). The Blend copy opens read-only.
+- **Two editors at once.** If a file changes on disk while you have unsaved edits in the browser, DocuBrew asks: *Keep mine* or *Use disk version*. With no unsaved edits it just reloads.
+- **Scroll sync.** With **Sync** on, the preview follows the editor. Double-click anything in the preview to jump to its line in the source.
+- **Images.** Drag image files onto a page in the preview — a red line shows where they'll go — or into the editor. They're saved to `images/` (same file twice isn't duplicated) and linked as `![Alt](../images/name.png)`.
+- **Chapters.** *+ Chapter* adds the next numbered file in `content/`.
+- **Inspect (visual styling).** Turn on **Inspect** (or press I), hover the preview and click an element. The inspector shows:
+  - **Blend style** — the Blend's named styles for that element (e.g. figure: Right, text wraps). Picking one adds the class to the Markdown, `{.fig-right}`. This is the consistent choice: no new CSS.
+  - **Properties** — width, text size, weight, alignment, color, space above/below, start on a new page, keep with next.
+  - **Applies to** — *This element* (DocuBrew gives it a readable id in the Markdown, e.g. `{#fig-type-basket}`, and styles `#fig-type-basket`) or *All figures / All paragraphs / …* (styles every element of that kind in this Brew). Each new selection starts at *This element*.
+  - Changes show instantly, then the pages re-flow. Rules are written to a marked **DocuBrew visual edits** section in `overrides.css` — the rest of that file is yours and is never touched. Esc stops inspecting.
+- **Zoom.** **Fit** keeps the page fitted to the preview as you resize; − / + / 100% switch to a fixed zoom.
+
+Shortcuts: I inspect · Esc stop inspecting · Ctrl+S save · Ctrl+E export PDF · Ctrl+O open Brew · Ctrl+\ toggle editor · Ctrl+Alt+N new Brew.
 
 ## Words
 
@@ -79,7 +96,7 @@ A chapter with a `title` gets the Blend's chapter-opener template. Leave `title`
 | `::: warning Title` … `:::` | Callout: `note`, `tip`, `important`, `warning`, `caution`, `danger` |
 | `::: steps` (around a numbered list) | Large numbered steps |
 | `::: tools Tools & materials` (around a list) | Two-column tools box |
-| `{.spec}` on the line after a table | Spec-sheet table style |
+| A blank line, then `{.spec}` on its own line after a table | Spec-sheet table style (same form works for lists) |
 | `text[^1]` … `[^1]: note` | Footnotes |
 | `<div class="page-break"></div>` | Force a new page |
 | `{{ path.to.variable }}` | Value from `brew.yaml` variables (`\{{` to write it literally) |
@@ -138,7 +155,8 @@ To use `docubrew` from anywhere, run `npm link` once in this folder.
 - [Paged.js](https://pagedjs.org) paginates the HTML in the browser. The preview renders into a hidden frame and swaps in when done, keeping your scroll position.
 - chokidar watches the Brew folder; any change pushes a WebSocket message and the preview refreshes.
 - PDF export loads the same page in headless Chrome (Puppeteer) and prints it — the preview is the print.
-- Every block element carries `data-source-line` / `data-source-file`, ready for Phase 2 (scroll sync, drag-and-drop images) and Phase 3 (visual inspector).
+- Every block element carries `data-source-line` / `data-source-end` and its chapter section carries `data-source-file`. That mapping drives scroll sync, jump-to-source and image drops, and will drive the Phase 3 inspector.
+- The editor is CodeMirror 6, pre-bundled into `app/vendor/codemirror.js` so running DocuBrew needs no build step. After upgrading CodeMirror, run `npm run build:vendor`.
 
 ## License
 
