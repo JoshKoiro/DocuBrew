@@ -27,7 +27,7 @@ export function createSession(editor, ui) {
     conflict = null;
     ui.conflict(null);
     editor.load(data);
-    status(data.readOnly ? 'Read-only · edit the Library Blend' : 'Saved', data.readOnly ? 'is-readonly' : '');
+    status(data.readOnly ? data.readOnlyReason || 'Read-only · edit the Library Blend' : 'Saved', data.readOnly ? 'is-readonly' : '');
     ui.opened(file);
     if (line) editor.goToLine(line);
   }
@@ -130,6 +130,14 @@ export function createSession(editor, ui) {
     externalChange,
     resolve,
     close() { clearTimeout(timer); file = null; dirty = false; conflict = null; ui.conflict(null); },
+    /** Load the open file again (e.g. it became editable or read-only). */
+    async reload() {
+      const p = file?.path;
+      if (!p) return;
+      clearTimeout(timer);
+      file = null; dirty = false; conflict = null; ui.conflict(null);
+      await open(p);
+    },
     get file() { return file; },
     get dirty() { return dirty; },
   };

@@ -3,7 +3,7 @@
 > Markdown + CSS in, print-ready PDF out. A local, browser-based workbench for
 > producing consistently styled SOPs, manuals and books without Word or InDesign.
 
-Status: **0.9.0 Beta** — Phases 1–5, plus GitHub issues #1 (AI support) and #2 (standard Blends). Next: #3 (MCP server). · Last updated: 2026-11-10 · Decisions log: [docs/DECISIONS.md](docs/DECISIONS.md)
+Status: **0.9.0 Beta** — Phases 1–5, plus GitHub issues #1 (AI support), #2 (standard Blends), #4 (delete to trash), #5 (Brews table, tabs, Ctrl+K) and #6 (server mode). Next: #3 (MCP server). · Last updated: 2026-11-11 · Decisions log: [docs/DECISIONS.md](docs/DECISIONS.md)
 
 ---
 
@@ -27,7 +27,7 @@ Status: **0.9.0 Beta** — Phases 1–5, plus GitHub issues #1 (AI support) and 
 
 - Magazines, brochures, complex multi-frame layouts.
 - Commercial/offset print (CMYK, ink limits). Target is a home/office printer.
-- Multi-user / network server deployment (architecture keeps the door open; see §8).
+- Real-time multi-user editing (server mode allows one editor per Brew; see §8).
 
 ---
 
@@ -309,13 +309,15 @@ Same design language as joshkoiro.github.io: flat, grid-based, hairline rules, n
 | **3. Visual editor** ✓ | Hover/select, property panel, presets, two edit scopes (Document Editor) | Images can be placed and sized without opening CSS |
 | **4. Templates, variables, Blend Editor** ✓ | Title page, chapter openers, TOC with page numbers, `{{variables}}`, Blend `extends`, out-of-date prompt with diff, Blend Editor mode with specimen, `typewriter-care` Blend | A care sheet for a new machine takes only a new `brew.yaml` |
 | **5. Packaging & CLI** ✓ | `.brew` import/export, full CLI, batch builds | A `.brew` file round-trips to another machine and renders identically |
+| **0.9 beta** ✓ | AI guide + checker (#1), Stage Play and Typewritten Blends (#2) | |
+| **Next** ✓ | Per-tab sessions, Brews table + Ctrl+K + new tabs (#5), delete to trash (#4), server mode with edit locks (#6) | Two people on two computers can work on different Brews from one server |
 
 ---
 
 ## 8. Deployment model
 
-- **Now:** local only. `docubrew` starts a server bound to `127.0.0.1` and opens the default browser.
-- **Later (optional):** server mode. Because all file access already goes through the server's API, network mode mainly adds a bind-address setting and authentication.
+- **Local (default):** `docubrew` starts a server bound to `127.0.0.1` and opens the default browser.
+- **Server mode (GitHub #6):** `docubrew serve` binds to all addresses, protects the app with an access token (URL once, then a cookie), asks each person for a name, and keeps the server's file system out of reach (browsing limited to the workspace, no "open folder" actions). One editor per Brew; everyone else is read-only (D-032). Real-time co-editing is a possible later step.
 
 ---
 
@@ -329,7 +331,8 @@ Both Blends extend a shared `typewriter-base` (brand tokens, fonts, base element
 ## 10. After Phase 5 — candidate next steps
 
 - **MCP server** (GitHub issue #3): `docubrew mcp` so Claude Desktop / Claude Code can list, write, check, render and export Brews directly.
-- Server mode (bind address + authentication) for use from other machines on the network (§8).
+- Real-time collaboration in server mode, instead of one editor at a time.
+- HTTPS for server mode (today it's plain HTTP for trusted networks).
 - Data-driven documents inside the app: pick a record from a data file and preview it, not only in the CLI.
 - Paged.js 2.0 upgrade behind the renderer adapter, when it's released.
 - Footnotes at the foot of the page (Paged.js `float: footnote`) instead of the end of each chapter.

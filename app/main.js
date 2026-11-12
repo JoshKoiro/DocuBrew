@@ -1,5 +1,6 @@
 // DocuBrew app shell. Plain ES modules, no framework (docs/DECISIONS.md D-010).
-import { api, connectLive } from './api.js';
+import { api, connectLive, session as client } from './api.js';
+import { createBrewBrowser, createPalette } from './brews.js';
 import { createPreview } from './preview.js';
 import { createOpenDialog, createNewDialog, el } from './dialogs.js';
 import { createEditor } from './editor.js';
@@ -14,6 +15,7 @@ const store = {
 
 const state = {
   workspace: '',
+  serverMode: false,
   mode: 'brew',     // 'brew' | 'blend' (Blend Editor)
   brew: null,       // what's open: a Brew, or in Blend mode the Library Blend (both have path + title)
   lastBrew: null,   // for "Back to document"
@@ -186,7 +188,7 @@ async function afterImport(info) {
   notify({
     title: 'Brew imported',
     body: [info.title, el('span', { class: 'toast-path', title: info.path }, info.renamed ? `Saved as ${info.folder}/ (that name was taken)` : `${info.folder}/`)],
-    actions: [el('button', { class: 'btn btn-toast', onclick: () => api.reveal(null, info.path).catch((e) => toast(e.message, true)) }, 'Show in folder')],
+    actions: localOnly(el('button', { class: 'btn btn-toast', onclick: () => api.reveal(null, info.path).catch((e) => toast(e.message, true)) }, 'Show in folder')),
     timeout: 12000,
   });
 }
@@ -203,7 +205,7 @@ async function exportBrew() {
       title: '.brew exported',
       body: [`${r.files} files · ${kb} — content, images and its Blend, ready to send`, el('span', { class: 'toast-path', title: r.file }, r.file.split(/[\\/]/).slice(-3).join('/'))],
       actions: [
-        el('button', { class: 'btn btn-toast', onclick: () => api.reveal(null, r.file, true).catch((e) => toast(e.message, true)) }, 'Show in folder'),
+        ...localOnly(el('button', { class: 'btn btn-toast', onclick: () => api.reveal(null, r.file, true).catch((e) => toast(e.message, true)) }, 'Show in folder')),
         el('a', { class: 'btn btn-toast', href: r.url, download: '', style: 'display:inline-grid;place-items:center;text-decoration:none' }, 'Download'),
       ],
       timeout: 15000,
@@ -425,9 +427,43 @@ function renderBrewState() {
   document.querySelectorAll('#blend-list li[data-id]').forEach((li) => li.classList.toggle('is-active', blendMode && li.dataset.id === b?.id));
   if (blendMode) renderPreviewWith();
   if (blendMode) $('#blend-banner').hidden = true;
+  renderLock();
   renderMeta();
   renderLayout();
+  // The address names what's open, so reloading or copying the link reopens it.
+  const q = !b ? '' : blendMode ? `?blend=${encodeURIComponent(b.id)}` : `?brew=${encodeURIComponent(b.path)}`;
+  if (location.search !== q) history.replaceState(null, '', `/${q}`);
 }
+
+// ─── Edit locks (GitHub #6) ───
+function renderLock() {
+  const lock = state.brew?.lock;
+  const readOnly = Boolean(state.brew && lock && !lock.editable);
+  state.readOnly = readOnly;
+  document.body.classList.toggle('is-read-only', readOnly);
+  $('#lock-banner').hidden = !readOnly;
+  if (readOnly) {
+    const since = lock.since ? ` since ${new Date(lock.since).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : '';
+    $('#lock-text').replaceChildren(el('strong', {}, lock.holder), ` is editing this ${state.mode === 'blend' ? 'Blend' : 'Brew'}${since}. You're viewing it read-only — the preview follows their changes, and you can still export. It becomes editable here when they close it.`);
+    if (state.inspecting) setInspecting(false);
+  }
+  $('#btn-release').disabled = readOnly;
+}
+
+async function lockChanged(lock) {
+  if (!state.brew) return;
+  const was = state.brew.lock?.editable !== false;
+  state.brew.lock = lock;
+  renderLock();
+  await session.reload().catch(() => {});
+  if (lock.editable && !was) toast('You can edit this now.');
+  else if (!lock.editable && was) toast(`${lock.holder} took over editing. This tab is read-only now.`, true);
+  loadSidebar();
+}
+
+$('#lock-take').onclick = async () => {
+  try { await lockChanged(await api.takeOver()); } catch (err) { toast(err.message, true); }
+};
 
 async function loadSidebar() {
   const [brews, blends] = await Promise.all([api.brews(), api.allBlends()]);
@@ -437,7 +473,7 @@ async function loadSidebar() {
       ? brews.map((b) =>
           el('li', { 'data-path': b.path, title: b.path, onclick: () => openBrew(b.path) },
             el('span', { class: 'list-title' }, b.title),
-            el('span', { class: 'list-sub' }, `${b.folder} · ${b.chapters} ${b.chapters === 1 ? 'chapter' : 'chapters'}`)))
+            el('span', { class: 'list-sub' }, `${b.folder} · ${b.chapters} ${b.chapters === 1 ? 'chapter' : 'chapters'}`, b.editingBy ? el('span', { class: 'lock-tag' }, b.editingBy) : null)))
       : [el('li', { class: 'list-empty' }, 'No Brews in the workspace yet.')])
   );
   $('#blend-list').replaceChildren(
@@ -512,7 +548,7 @@ async function exportPdf() {
       body: [`${r.pages} pages in ${(r.ms / 1000).toFixed(1)} s`, el('span', { class: 'toast-path', title: r.file }, r.file.split(/[\\/]/).slice(-3).join('/'))],
       actions: [
         el('button', { class: 'btn btn-toast', onclick: () => window.open(url, '_blank') }, 'Open PDF'),
-        el('button', { class: 'btn btn-toast', onclick: () => api.reveal(null, r.file, true).catch((e) => toast(e.message, true)) }, 'Show in folder'),
+        ...localOnly(el('button', { class: 'btn btn-toast', onclick: () => api.reveal(null, r.file, true).catch((e) => toast(e.message, true)) }, 'Show in folder')),
       ],
       timeout: 15000,
     });
@@ -538,6 +574,9 @@ function openWaitingTab(title) {
   tab.document.close();
   return tab;
 }
+
+/** Actions that act on the server's own computer make no sense to someone across the network. */
+const localOnly = (...nodes) => (state.serverMode ? [] : nodes);
 
 /** A result card: title, body lines, actions. Errors stay until dismissed. */
 let toastTimer;
@@ -769,6 +808,87 @@ const newDialog = createNewDialog({
   },
 });
 
+// ─── All Brews, delete, quick switcher (GitHub #4, #5) ───
+const openInNewTab = (query) => window.open(`/?${query}`, '_blank');
+
+const browser = createBrewBrowser({
+  current: () => (state.mode === 'brew' ? state.brew?.path : null),
+  onOpen: (path) => openBrew(path).catch((e) => toast(e.message, true)),
+  onOpenTab: (path) => openInNewTab(`brew=${encodeURIComponent(path)}`),
+  beforeDelete: async (b) => { if (b.path === state.brew?.path) await session.flush(); },
+  onDeleted: async (meta, b) => {
+    const wasOpen = state.mode === 'brew' && state.brew?.path === b.path;
+    if (wasOpen) await setBrew(null);
+    await loadSidebar();
+    notify({
+      title: 'Moved to trash',
+      body: [b.title, 'Restore it from Brews → Trash at any time.'],
+      actions: [el('button', { class: 'btn btn-toast', onclick: async () => {
+        try {
+          const info = await api.restoreTrash(meta.id);
+          $('#toast').hidden = true;
+          await loadSidebar();
+          browser.refresh();
+          if (wasOpen) await openBrew(info.path);
+          toast(`Restored ${info.title}.`);
+        } catch (err) { toast(err.message, true); }
+      } }, 'Undo')],
+      timeout: 12000,
+    });
+  },
+  onRestored: async (info) => {
+    await loadSidebar();
+    toast([`Restored ${info.title}${info.folder !== info.originalFolder && info.originalFolder ? ` as ${info.folder}/` : ''}. `, el('a', { href: '#', onclick: (e) => { e.preventDefault(); $('#dlg-brews').close(); openBrew(info.path); } }, 'Open it')]);
+  },
+  toast: (m, e) => toast(m, e),
+});
+
+const palette = createPalette({
+  items: async () => {
+    const [brews, blends] = await Promise.all([api.brews(), api.allBlends()]);
+    const cur = state.brew?.path;
+    return [
+      ...brews.map((b) => ({ kind: b.editingBy ? `Brew · ${b.editingBy}` : 'Brew', title: b.title, sub: `${b.folder}${b.blend ? ` · ${b.blend.source}` : ''}`, path: b.path, recent: b.path === cur ? -1 : Date.parse(b.modified || 0) / 1e12 })),
+      ...blends.map((b) => ({ kind: 'Blend', title: b.name, sub: `${b.id} ${b.version}`, blend: b.id, recent: -2 })),
+    ];
+  },
+  onPick: (it, newTab) => {
+    if (newTab) return openInNewTab(it.blend ? `blend=${encodeURIComponent(it.blend)}` : `brew=${encodeURIComponent(it.path)}`);
+    (it.blend ? openBlend(it.blend) : openBrew(it.path)).catch((e) => toast(e.message, true));
+  },
+});
+
+$('#btn-brews').onclick = () => browser.show();
+$('#btn-brews-all').onclick = () => browser.show();
+$('#btn-find').onclick = () => palette.show();
+
+// ─── Your name (server mode) ───
+function askName({ required = false } = {}) {
+  const dlg = $('#dlg-name');
+  const form = $('#name-form');
+  const input = form.elements.namedItem('userName');
+  input.value = client.user;
+  return new Promise((resolve) => {
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      const name = input.value.trim();
+      if (!name) return;
+      client.user = name;
+      renderUser();
+      dlg.close();
+      resolve(name);
+    };
+    dlg.oncancel = (e) => { if (required) e.preventDefault(); };
+    dlg.showModal();
+    input.focus();
+  });
+}
+function renderUser() {
+  $('#btn-user').hidden = !state.serverMode;
+  $('#btn-user').textContent = client.user || 'Your name';
+}
+$('#btn-user').onclick = () => askName().then(() => toast('Name saved. Others see it next time you open a Brew.'));
+
 $('#btn-new').onclick = () => newDialog.show();
 $('#btn-open').onclick = () => openDialog.show();
 $('#btn-export').onclick = exportPdf;
@@ -789,11 +909,12 @@ document.addEventListener('keydown', (e) => {
   const typing = e.target.closest?.('.cm-editor, input, textarea, select, [contenteditable]');
   if (!mod) {
     if (e.key === 'Escape' && state.inspecting) setInspecting(false);
-    else if (!typing && !e.altKey && e.key.toLowerCase() === 'i' && state.brew) setInspecting(!state.inspecting);
+    else if (!typing && !e.altKey && e.key.toLowerCase() === 'i' && state.brew && !state.readOnly) setInspecting(!state.inspecting);
     return;
   }
   const k = e.key.toLowerCase();
   const inEditor = e.target.closest?.('.cm-editor');
+  if (k === 'k' && !e.shiftKey && !e.altKey) { e.preventDefault(); palette.show(); return; }
   if (k === 'e') { e.preventDefault(); exportPdf(); }
   else if (k === 'o') { e.preventDefault(); openDialog.show(); }
   else if (k === 's') { e.preventDefault(); session.save(); }
@@ -808,13 +929,22 @@ document.addEventListener('keydown', (e) => {
 window.addEventListener('beforeunload', (e) => {
   if (session.dirty) { session.flush(); e.preventDefault(); }
 });
+// Give up this tab's edit lock right away rather than when the server notices it's gone.
+window.addEventListener('pagehide', () => navigator.sendBeacon?.(`/api/close?session=${client.id}`));
 
 let wasConnected = false;
 connectLive({
   onStatus: (up) => {
     $('#live').classList.toggle('is-live', up);
     $('#live-text').textContent = up ? 'Live' : 'Offline';
-    if (up && wasConnected && state.brew) preview.refresh(); // catch up on anything missed while disconnected
+    // Catch up on anything missed while disconnected. If the server restarted it has forgotten
+    // this tab, so open the same thing again first.
+    if (up && wasConnected && state.brew) {
+      (state.mode === 'blend' ? api.openBlend(state.brew.id) : api.open(state.brew.path))
+        .then((info) => { if (info?.lock) { state.brew.lock = info.lock; renderLock(); } })
+        .catch(() => {})
+        .finally(() => preview.refresh());
+    }
     if (up) wasConnected = true;
   },
   onMessage: (msg) => {
@@ -824,6 +954,11 @@ connectLive({
       if (msg.files.some((f) => f === 'brew.yaml' || f.startsWith('content/'))) loadSidebar();
       if (state.mode === 'blend' || msg.files.some((f) => /^(content|images|blend)\//.test(f) || f === 'overrides.css')) loadFiles();
       if (state.mode === 'blend' && msg.files.includes('blend.yaml')) refreshBlendInfo();
+    } else if (msg.type === 'lock') {
+      lockChanged(msg.lock);
+    } else if (msg.type === 'closed') {
+      setBrew(null).then(loadSidebar);
+      notify({ title: 'This Brew was deleted', body: ['It was moved to the trash in another tab or by someone else. Restore it from Brews → Trash.'], timeout: 15000 });
     } else if (msg.type === 'opened') {
       const info = msg.mode === 'blend' ? msg.blend : msg.brew;
       if (info.path !== state.brew?.path || msg.mode !== state.mode) setBrew(info, msg.mode);
@@ -832,10 +967,22 @@ connectLive({
 });
 
 // ─── Start ───
-const initial = await api.state();
-state.workspace = initial.workspace;
+// ?brew=<path> or ?blend=<id> opens that in this tab (new tabs from the Brews list and Ctrl+K).
+const params = new URLSearchParams(location.search);
+const peek = await api.state('', { peek: true });
+state.workspace = peek.workspace;
+state.serverMode = peek.serverMode;
+document.body.classList.toggle('is-server-mode', state.serverMode);
+renderUser();
+if (state.serverMode && !client.user) await askName({ required: true });
 state.lastBrew = store.get('docubrew.lastBrew', null);
-$('#workspace-path').textContent = initial.workspace;
+$('#workspace-path').textContent = state.serverMode ? `${peek.workspace} (on the server)` : peek.workspace;
 await loadSidebar();
-if (initial.mode === 'blend') await setBrew(initial.blend, 'blend');
-else await setBrew(initial.brew);
+if (params.get('blend')) {
+  try { await openBlend(params.get('blend')); } catch (err) { toast(err.message, true); await setBrew(null); }
+} else {
+  const initial = await api.state(params.get('brew'));
+  if (initial.mode === 'blend') await setBrew(initial.blend, 'blend');
+  else await setBrew(initial.brew);
+  if (params.get('brew') && !initial.brew) toast(`Couldn't open ${params.get('brew')}.`, true);
+}

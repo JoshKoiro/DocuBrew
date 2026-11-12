@@ -2,6 +2,7 @@
 // DocuBrew command line.
 //
 //   docubrew [start] [brew-folder]     start the app (opens your browser)
+//   docubrew serve                     share it on your network (--host, --token, --no-auth)
 //   docubrew build <brew-folder>...    export PDFs without opening the app
 //       --out-dir <dir>  --set key=value  --data records.yaml|json|csv  --name "{{machine.serial}}"
 //   docubrew check [brew-folder]...    validate (--render: also check overflow; --json)
@@ -16,7 +17,7 @@
 //   docubrew blend update <brew>...    copy the current Library Blend into the Brew
 //   docubrew blend reset <id>...       replace a Library Blend with the version bundled with DocuBrew
 //
-// Options: --workspace <dir>  --port <n>  --no-open  -o/--out <file.pdf>
+// Options: --workspace <dir>  --port <n>  --host <addr>  --no-open  -o/--out <file.pdf>
 import path from 'node:path';
 import fs from 'node:fs/promises';
 import { parseArgs } from 'node:util';
@@ -37,6 +38,10 @@ const { values: opts, positionals } = parseArgs({
   options: {
     workspace: { type: 'string', short: 'w' },
     port: { type: 'string', short: 'p' },
+    host: { type: 'string' },
+    serve: { type: 'boolean' },
+    token: { type: 'string' },
+    'no-auth': { type: 'boolean' },
     open: { type: 'boolean', default: true },
     'no-open': { type: 'boolean' },
     out: { type: 'string', short: 'o' },
@@ -57,7 +62,7 @@ const { values: opts, positionals } = parseArgs({
   },
 });
 
-const COMMANDS = ['start', 'build', 'new', 'list', 'sample', 'blend', 'pack', 'unpack', 'check', 'context', 'guide', 'help'];
+const COMMANDS = ['start', 'serve', 'build', 'new', 'list', 'sample', 'blend', 'pack', 'unpack', 'check', 'context', 'guide', 'help'];
 let [command, ...args] = positionals;
 if (!COMMANDS.includes(command)) {
   if (command) args.unshift(command);
@@ -68,17 +73,27 @@ if (opts.help) command = 'help';
 const workspace = resolveWorkspace(opts.workspace);
 
 try {
-  await ({ start, build, new: create, list, sample, blend, pack, unpack, check, context, guide, help })[command]();
+  await ({ start, serve: () => start(true), build, new: create, list, sample, blend, pack, unpack, check, context, guide, help })[command]();
 } catch (err) {
   console.error(`\n  ${err.message}\n`);
   process.exit(1);
 }
 
-async function start() {
-  const server = await startServer({ workspace, port: Number(opts.port) || 4747, brew: args[0] });
+async function start(serve = false) {
+  const host = opts.host || (serve || opts.serve ? '0.0.0.0' : '127.0.0.1');
+  const token = opts['no-auth'] ? false : opts.token || process.env.DOCUBREW_TOKEN || undefined;
+  const server = await startServer({ workspace, port: Number(opts.port) || 4747, host, token, brew: args[0] });
   console.log(`\n  DocuBrew is running at ${server.url}`);
+  if (server.serverMode) {
+    const q = server.token ? `/?token=${server.token}` : '';
+    console.log('  Server mode: other computers on your network can use it.');
+    for (const u of server.networkUrls) console.log(`    ${u}${q}`);
+    if (server.token) console.log(`  Share the link (it includes the access token, saved in .docubrew/server.json).`);
+    else console.log('  No access token (--no-auth): anyone who can reach this computer can edit.');
+    console.log('  One person edits a Brew at a time; others see it read-only.');
+  }
   console.log(`  Workspace: ${workspace}\n  Press Ctrl+C to stop.\n`);
-  if (opts.open && !opts['no-open']) openBrowser(server.url);
+  if (opts.open && !opts['no-open']) openBrowser(`${server.url}${server.token ? `/?token=${server.token}` : ''}`);
   const stop = async () => { await server.close(); process.exit(0); };
   process.on('SIGINT', stop);
   process.on('SIGTERM', stop);
@@ -127,7 +142,7 @@ async function build() {
         used.add(name);
         const out = opts.out ? path.resolve(opts.out) : path.join(outDir || path.join(dir, DIST_DIR), name);
         try {
-          const r = await exportPdf(`${server.url}/preview/?mode=print`, out);
+          const r = await exportPdf(server.cliPreviewUrl(), out);
           ok++;
           console.log(`  ✓ ${record ? `[${i + 1}/${records.length}] ` : ''}${title} → ${out}  (${r.pages} pages, ${(r.ms / 1000).toFixed(1)} s)`);
         } catch (err) {
@@ -160,7 +175,7 @@ async function check() {
       if (opts.render && r.problems.every((p) => p.severity !== 'error' || p.file !== 'brew.yaml')) {
         await server.openBrew(dir);
         const page = await browser.newPage();
-        await page.goto(`${server.url}/preview/?mode=print`, { waitUntil: 'load' });
+        await page.goto(server.cliPreviewUrl(), { waitUntil: 'load' });
         await page.waitForFunction('window.__docubrew && (window.__docubrew.done || window.__docubrew.error)', { timeout: 120000 });
         const state = await page.evaluate(() => ({ ...window.__docubrew, overflow: window.__docubrewOverflow ? window.__docubrewOverflow() : [] }));
         await page.close();
@@ -294,6 +309,10 @@ async function help() {
   DocuBrew — Markdown + CSS → print-ready PDF
 
   docubrew [brew-folder]              start the app and open your browser
+  docubrew serve                      run it for everyone on your network (one editor per Brew)
+      --host <addr>                   address to listen on (serve: 0.0.0.0)
+      --token <t>                     access token (default: $DOCUBREW_TOKEN, or one saved in the workspace)
+      --no-auth                       no token; anyone who can reach the computer gets in
   docubrew build <brew-folder>        export a PDF to <brew>/dist/
   docubrew build --all [folder]       export every Brew in a folder (default: workspace)
       --out-dir <dir>                 put the PDFs in one folder

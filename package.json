@@ -5,8 +5,12 @@
   "main": "src/server/server.js",
   "scripts": {
     "start": "node bin/docubrew.js",
-    "build": "node bin/docubrew.js build",
+    "serve": "node bin/docubrew.js serve --no-open",
+    "serve:noauth": "node bin/docubrew.js serve --no-auth --no-open",
     "dev": "node --watch-path=src bin/docubrew.js --no-open",
+    "dev:serve": "node --watch-path=src bin/docubrew.js serve --no-open",
+    "build": "node bin/docubrew.js build",
+    "cli": "node bin/docubrew.js",
     "build:vendor": "node scripts/build-vendor.js"
   },
   "repository": {

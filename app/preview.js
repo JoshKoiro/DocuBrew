@@ -1,5 +1,6 @@
 // The paginated preview. Each refresh renders into a hidden iframe and swaps it in when
 // Paged.js finishes, so the visible preview never flickers or jumps.
+import { previewBase } from './api.js';
 import { pickElement, describe, findByKey, createOverlay } from './inspect.js';
 
 const ZOOM_KEY = 'docubrew.zoom';
@@ -32,7 +33,7 @@ export function createPreview(canvas, { onRendered, onError, onBusy, onJump, onD
     pending = document.createElement('iframe');
     pending.className = 'frame is-pending';
     pending.title = 'Document preview';
-    pending.src = `/preview/?t=${Date.now()}`;
+    pending.src = `${previewBase()}?t=${Date.now()}`;
     canvas.appendChild(pending);
     onBusy(true);
   }

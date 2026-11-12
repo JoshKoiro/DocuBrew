@@ -32,11 +32,14 @@
       <button class="btn btn-quiet" id="btn-back" hidden title="Back to the last Brew">← Back to document</button>
     </div>
     <nav class="bar-right">
+      <button class="btn btn-quiet server-only" id="btn-user" title="Your name, shown to others on this server" hidden></button>
+      <button class="btn btn-quiet find-btn" id="btn-find" title="Jump to a Brew or Blend (Ctrl+K)">Find <kbd>Ctrl K</kbd></button>
+      <button class="btn" id="btn-brews" title="All Brews: search, open in a new tab, delete">Brews</button>
       <button class="btn" id="btn-new" title="New Brew (Ctrl+Alt+N)">New</button>
       <button class="btn" id="btn-open" title="Open Brew (Ctrl+O)">Open</button>
       <span class="bar-sep" aria-hidden="true"></span>
-      <button class="btn needs-brew" id="btn-folder" title="Show the Brew folder" disabled>Folder</button>
-      <button class="btn needs-brew" id="btn-code" title="Open the Brew in VS Code" disabled>VS Code</button>
+      <button class="btn needs-brew local-only" id="btn-folder" title="Show the Brew folder" disabled>Folder</button>
+      <button class="btn needs-brew local-only" id="btn-code" title="Open the Brew in VS Code" disabled>VS Code</button>
       <button class="btn needs-brew brew-only" id="btn-pack" title="Save this Brew as one .brew file to send or archive" disabled>Export .brew</button>
       <button class="btn btn-primary needs-brew brew-only" id="btn-export" title="Export PDF (Ctrl+E)" disabled>Export PDF</button>
       <button class="btn btn-primary blend-only" id="btn-release" title="Give this Blend a new version number, so Brews using it are offered the update" hidden>Release version…</button>
@@ -62,7 +65,7 @@
         </details>
       </section>
       <section class="side-block">
-        <h2 class="label">Brews</h2>
+        <h2 class="label side-head">Brews <button class="btn btn-quiet side-head-btn" id="btn-brews-all" type="button" title="All Brews in a table">All…</button></h2>
         <ul class="list" id="brew-list"></ul>
         <button class="btn btn-quiet side-action" id="btn-samples" type="button">+ Add sample Brews</button>
       </section>
@@ -107,6 +110,12 @@
           <button class="btn" id="blend-review">Review changes</button>
           <button class="btn btn-primary" id="blend-update">Update</button>
           <button class="btn btn-quiet" id="blend-dismiss">Not now</button>
+        </div>
+      </div>
+      <div class="banner banner-lock" id="lock-banner" hidden>
+        <p id="lock-text"></p>
+        <div class="banner-actions">
+          <button class="btn" id="lock-take" title="Make this browser the editor. The other person's unsaved typing may be lost.">Take over editing</button>
         </div>
       </div>
       <div class="work" id="work">
@@ -286,5 +295,54 @@
   </dialog>
 
   <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+  <!-- All Brews (GitHub #5) -->
+  <dialog class="dialog dialog-wide dialog-brews" id="dlg-brews">
+    <form method="dialog" class="dialog-form">
+      <header class="dialog-head">
+        <h2 id="brews-heading">Brews</h2>
+        <div class="dialog-head-actions">
+          <button type="button" class="btn btn-quiet toggle" id="brews-trash-toggle">Trash</button>
+          <button class="btn btn-quiet" value="cancel">Close</button>
+        </div>
+      </header>
+      <div class="pathbar">
+        <input type="search" id="brews-search" placeholder="Search title, folder, Blend…" autocomplete="off" spellcheck="false" aria-label="Search Brews">
+      </div>
+      <div class="brews-scroll">
+        <table class="brews-table" id="brews-table">
+          <thead><tr id="brews-head"></tr></thead>
+          <tbody id="brews-body"></tbody>
+        </table>
+      </div>
+      <footer class="dialog-foot">
+        <span class="hint" id="brews-hint">Click a row to open it here. Ctrl+click or ↗ opens it in a new tab.</span>
+        <span class="hint" id="brews-count"></span>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- Quick switcher (Ctrl+K) -->
+  <dialog class="palette" id="dlg-palette">
+    <input type="text" id="palette-input" placeholder="Jump to a Brew or Blend…" autocomplete="off" spellcheck="false" aria-label="Search">
+    <ul class="palette-list" id="palette-list" role="listbox"></ul>
+    <p class="palette-hint">↑↓ to choose · Enter opens · Ctrl+Enter opens in a new tab · Esc closes</p>
+  </dialog>
+
+  <!-- Your name (server mode) -->
+  <dialog class="dialog" id="dlg-name">
+    <form class="dialog-form" id="name-form">
+      <header class="dialog-head"><h2>Who's this?</h2></header>
+      <label class="field">
+        <span class="label">Your name</span>
+        <input type="text" name="userName" required maxlength="40" autocomplete="name" placeholder="Josh">
+      </label>
+      <p class="dialog-note">This DocuBrew is shared on the network. Your name shows others who's editing a Brew — only one person edits a Brew at a time.</p>
+      <footer class="dialog-foot">
+        <span class="hint">Saved in this browser.</span>
+        <button type="submit" class="btn btn-primary">Continue</button>
+      </footer>
+    </form>
+  </dialog>
 </body>
 </html>

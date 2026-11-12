@@ -6,7 +6,7 @@ Markdown + reusable CSS styles → print-ready PDFs, with a live, paginated prev
 
 Write in Markdown (in any editor), style with layered CSS **Blends**, and see the printed pages update every time you save. Export to PDF with page numbers, running headers and footers handled by standard CSS Paged Media.
 
-Status: **0.9.0 Beta** — all planned phases, standard Blends (#2) and AI support (#1). Next: an MCP server (#3). See [PLAN.md](PLAN.md) for the roadmap and [docs/DECISIONS.md](docs/DECISIONS.md) for why things are the way they are.
+Status: **0.9.0 Beta** — all planned phases, standard Blends (#2), AI support (#1), and the Brews table, Ctrl+K, delete to trash and server mode (#4–#6). Next: an MCP server (#3). See [PLAN.md](PLAN.md) for the roadmap and [docs/DECISIONS.md](docs/DECISIONS.md) for why things are the way they are.
 
 ## Quick start
 
@@ -39,9 +39,12 @@ On first run DocuBrew creates its workspace at `~/Documents/DocuBrew/` with the 
 - **Sharing (`.brew` files).** **Export .brew** saves the whole Brew — content, images, `overrides.css` and its own copy of the Blend — as one file in `dist/`, ready to email or archive (`dist/` itself and `.git` are left out). To open one, pick it in **Open** (it's listed with a *.brew file* tag) or drag it onto the app. It's unpacked into your workspace as a new Brew; if that folder name is taken it becomes `name-2`. If the Brew uses a Blend you don't have, it still renders from its own copy, and the banner offers **Add Blend to Library**.
 - **Check.** **Check** lists problems with file and line — missing images, unknown `{{variables}}`, classes the Blend doesn't style, unclosed `:::` blocks, attributes in the wrong place, broken links, CSS brace errors, and content wider or taller than the page. Click one to jump to it.
 - **Working with AI.** **Copy AI context** puts everything an assistant needs on your clipboard — this Brew's settings, its Blend's presets, classes, tokens and variables, every chapter, the current problems, and the DocuBrew guide — ready to paste into Claude or any chat. Your workspace also has `AGENTS.md` (the guide) and `CLAUDE.md`, which coding assistants like Claude Code read on their own. See [docs/AI-GUIDE.md](docs/AI-GUIDE.md).
+- **Finding Brews.** **Brews** (or *All…* in the sidebar) lists every Brew in a table — title, Blend, chapters, last modified, and who's editing it. Search as you type, click a column to sort, click a row to open it. **↗ New tab** (or Ctrl+click a row) opens it in another browser tab, so you can have several Brews open at once. **Ctrl+K** anywhere jumps to a Brew or Blend by typing a few letters of its name; Enter opens it, Ctrl+Enter opens it in a new tab.
+- **Deleting Brews.** In the Brews table, **Delete** (click twice to confirm) moves the Brew's folder to the trash in `.docubrew/trash/` in your workspace — **Undo** puts it straight back. **Trash** in the same dialog restores Brews or deletes them for good. Blends can only be deleted in the file system, on purpose. A Brew someone else is editing can't be deleted.
+- **One editor per Brew.** If the same Brew is open in another browser (or on another computer, in server mode), the second one gets it read-only, with a banner saying who's editing. The preview still follows their changes, and you can still export. It becomes editable as soon as they close it, or use **Take over editing** if they've walked away. Your own tabs in one browser never lock each other out.
 - **Samples.** *+ Add sample Brews* (or `docubrew sample`) puts back any bundled sample you've deleted.
 
-Shortcuts: I inspect · Esc stop inspecting · Ctrl+S save · Ctrl+E export PDF · Ctrl+O open Brew · Ctrl+\ toggle editor · Ctrl+Alt+N new Brew.
+Shortcuts: Ctrl+K find a Brew or Blend · I inspect · Esc stop inspecting · Ctrl+S save · Ctrl+E export PDF · Ctrl+O open Brew · Ctrl+\ toggle editor · Ctrl+Alt+N new Brew.
 
 ## Words
 
@@ -181,9 +184,26 @@ A paragraph that starts with a NAME IN CAPITALS is dialogue; a line in parenthes
 
 ## Command line
 
+From the DocuBrew folder, the npm scripts cover the common cases:
+
+```bash
+npm start                         # start the app and open the browser
+npm run serve                     # server mode: share it on your network (see below)
+npm run serve:noauth              # server mode with no access token (trusted networks only)
+npm run dev                       # restart on source changes (local)
+npm run dev:serve                 # restart on source changes (server mode)
+npm run build -- path/to/brew     # export a PDF
+npm run cli -- <command> [args]   # any docubrew command, e.g. npm run cli -- check --render
+```
+
+Arguments after `--` go to DocuBrew, so `npm run serve -- --port 8080 --token shop123` works too.
+
+To type `docubrew` directly instead, run `npm link` once in this folder; the commands below assume that.
+
 ```bash
 docubrew                          # start the app (or: npm start)
 docubrew path/to/brew             # start with a specific Brew open
+docubrew serve                    # share it with other computers on your network (or: npm run serve)
 docubrew build path/to/brew       # export a PDF to path/to/brew/dist/
 docubrew build --all              # export every Brew in the workspace
 docubrew new "Escapement Adjustment" --blend typewriter-sop
@@ -198,6 +218,15 @@ docubrew guide                    # rewrite AGENTS.md / CLAUDE.md in the workspa
 docubrew pack path/to/brew        # save as one .brew file (in its dist/, or -o file.brew)
 docubrew unpack file.brew         # import into the workspace (--name folder, --into dir)
 ```
+
+### Server mode
+
+`npm run serve` (or `docubrew serve`) runs DocuBrew for everyone on your network: it listens on all addresses (or `--host <address>`) and prints a link for each network address, like `http://192.168.1.20:4747/?token=…`. Open that link on another computer; the token in it is remembered in a cookie, so later visits only need the address.
+
+- **Access token.** Generated the first time and kept in the workspace (`.docubrew/server.json`), so the link stays the same. Use `--token <t>` or `DOCUBREW_TOKEN` to choose one, or `--no-auth` on a network you trust completely.
+- **Names and locks.** Each person enters a name once. Only one person edits a Brew (or Blend) at a time; others see it read-only with *“Name is editing this Brew”* and can still preview and export. **Take over editing** is there for when someone forgot to close it.
+- **What's different.** Everything stays inside the workspace on the server: *Open* only browses the workspace, and **Folder**, **VS Code** and *Show in folder* are hidden because they'd open on the server, not your computer. Download PDFs and `.brew` files from the result card instead.
+- It's plain HTTP. Use it on a home or shop network, not the open internet.
 
 ### Batch builds
 
@@ -220,11 +249,9 @@ Royal,Safari,1964,5123456,"Smith, Jane","[Cleaned, New ribbon]"
 
 Options: `--workspace <dir>` (or `DOCUBREW_WORKSPACE`), `--port <n>` (default 4747), `--no-open`, `-o out.pdf`.
 
-To use `docubrew` from anywhere, run `npm link` once in this folder.
-
 ## How it works
 
-- A local Node server (bound to `127.0.0.1`) renders the open Brew: Markdown → HTML with markdown-it, templates filled from YAML, Blend layers linked in cascade order.
+- A Node server (bound to `127.0.0.1`, or your network with `docubrew serve`) renders each tab's open Brew: Markdown → HTML with markdown-it, templates filled from YAML, Blend layers linked in cascade order.
 - [Paged.js](https://pagedjs.org) paginates the HTML in the browser. The preview renders into a hidden frame and swaps in when done, keeping your scroll position.
 - chokidar watches the Brew folder; any change pushes a WebSocket message and the preview refreshes.
 - PDF export loads the same page in headless Chrome (Puppeteer) and prints it — the preview is the print.

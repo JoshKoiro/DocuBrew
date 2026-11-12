@@ -4,6 +4,30 @@ Short records of decisions that shape DocuBrew. Newest first. Each entry: contex
 
 ---
 
+## D-034 · Deleting a Brew moves it to a trash folder
+**Date:** 2026-11-11
+**Context:** GitHub #4 asked for deleting Brews from the app, while Blends stay delete-only in the file system.
+**Decision:** Delete moves the folder to `<workspace>/.docubrew/trash/<folder>--<time>` with a small record of where it came from. The app offers Undo, and a Trash view with Restore and Delete forever. Restoring never overwrites: a taken name becomes `name-2`. A Brew another person is editing can't be deleted; the Brew is closed in every tab first so Windows releases its files.
+**Consequences:** A mistaken delete costs nothing. The trash isn't emptied automatically; it lives in the workspace and is skipped by the Brew list.
+
+## D-033 · Server mode: token, names, no server-side file access
+**Date:** 2026-11-11
+**Context:** GitHub #6. Anything on the network can reach the server, and buttons like "open in VS Code" would run on the server's computer.
+**Decision:** `docubrew serve` (or `--host`) listens beyond localhost. An access token is required unless `--no-auth`; it's saved in `.docubrew/server.json`, accepted once as `?token=` and then kept as an HttpOnly cookie (the WebSocket checks it too). People give a display name, stored in their browser. Browsing, opening and importing by path are limited to the workspace; reveal/VS Code actions are refused and hidden. PDF export loads the page over 127.0.0.1 with the token.
+**Consequences:** Plain HTTP for trusted networks; HTTPS is a later step.
+
+## D-032 · One editor per Brew; locks belong to a browser
+**Date:** 2026-11-11
+**Context:** GitHub #6: what happens when two people open the same file. Real-time co-editing is a big project.
+**Decision:** The first browser to open a Brew (or Library Blend) holds its lock; others get it read-only, enforced on the server (writes return 423). Locks are keyed by a client id in localStorage, so one person's tabs share the lock and the existing save-conflict check covers them. A lock is released when the last tab closes, opens something else, or has been gone two minutes; the next waiting viewer gets it automatically. **Take over** moves the lock explicitly.
+**Consequences:** Locally the same rule applies between two different browsers. Nobody can lose work to a silent overwrite; a taken-over editor's unsaved typing is the one thing at risk, which the button warns about.
+
+## D-031 · Each browser tab is its own session
+**Date:** 2026-11-11
+**Context:** The server held one "open Brew" for everything connected to it, so GitHub #5 (several Brews in tabs) and #6 (several people) were impossible.
+**Decision:** Every page load gets a session id. API calls carry it in headers, previews live under `/s/<session>/preview/`, and the WebSocket joins with it, so each tab has its own open Brew, watcher, Blend Editor state and live updates. The address bar carries `?brew=` / `?blend=`, so a new tab, a reload or a copied link opens the same thing. The CLI uses its own `cli` session.
+**Consequences:** If the server restarts, tabs reopen what they had when they reconnect.
+
 ## D-030 · DocuBrew writes YAML without line folding
 **Date:** 2026-11-11
 **Context:** The YAML library folds lines at 80 characters by default, so recording the Blend in brew.yaml re-wrapped long titles.
@@ -158,7 +182,7 @@ Short records of decisions that shape DocuBrew. Newest first. Each entry: contex
 ## D-002 · Local, single-machine first
 **Date:** 2026-11-10
 **Decision:** The server binds to `127.0.0.1` and runs on the same computer as the browser. All file access still goes through the server API, so a network/server mode can be added later with auth.
-**Consequences:** Personal tool now; public release possible later without re-architecture.
+**Consequences:** Personal tool now; public release possible later without re-architecture. (Server mode was added later: D-031 to D-033.)
 
 ## D-001 · Paged.js for pagination
 **Date:** 2026-11-10

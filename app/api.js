@@ -1,8 +1,30 @@
-// Thin client for the local DocuBrew server.
+// Thin client for the DocuBrew server.
+//
+// Each tab is its own session (its own open Brew and preview); each browser has a client id,
+// and edit locks belong to the browser, so two tabs here never lock each other out.
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch {} },
+};
+const rand = () => (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36)).replace(/[^\w-]/g, '');
+export const session = {
+  id: rand(), // per page load, never copied when a tab is duplicated
+  client: store.get('docubrew.client') || (() => { const c = rand(); store.set('docubrew.client', c); return c; })(),
+  get user() { return store.get('docubrew.user') || ''; },
+  set user(v) { store.set('docubrew.user', v); },
+};
+export const previewBase = () => `/s/${session.id}/preview/`;
+const headers = (extra = {}) => ({
+  'x-docubrew-session': session.id,
+  'x-docubrew-client': session.client,
+  'x-docubrew-user': encodeURIComponent(session.user),
+  ...extra,
+});
+
 async function request(method, url, body) {
   const res = await fetch(url, {
     method,
-    headers: body ? { 'content-type': 'application/json' } : {},
+    headers: headers(body ? { 'content-type': 'application/json' } : {}),
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
@@ -16,14 +38,20 @@ async function request(method, url, body) {
 }
 
 async function upload(file) {
-  const res = await fetch(`/api/images?name=${encodeURIComponent(file.name)}`, { method: 'POST', body: file });
+  const res = await fetch(`/api/images?name=${encodeURIComponent(file.name)}`, { method: 'POST', body: file, headers: headers() });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || `Upload failed (${res.status})`);
   return data;
 }
 
 export const api = {
-  state: () => request('GET', '/api/state'),
+  state: (brew, { peek } = {}) => request('GET', `/api/state?${peek ? 'peek=1' : brew ? `brew=${encodeURIComponent(brew)}` : ''}`),
+  close: () => request('POST', '/api/close'),
+  takeOver: () => request('POST', '/api/lock/take-over'),
+  deleteBrew: (path) => request('POST', '/api/brews/delete', { path }),
+  trash: () => request('GET', '/api/trash'),
+  restoreTrash: (id) => request('POST', '/api/trash/restore', { id }),
+  purgeTrash: (id) => request('POST', '/api/trash/purge', { id }),
   brews: () => request('GET', '/api/brews'),
   blends: () => request('GET', '/api/blends'),
   browse: (path) => request('GET', `/api/fs${path ? `?path=${encodeURIComponent(path)}` : ''}`),
@@ -43,7 +71,7 @@ export const api = {
   pack: () => request('POST', '/api/pack'),
   importPath: (path) => request('POST', '/api/import-path', { path }),
   importFile: async (file) => {
-    const res = await fetch(`/api/import?name=${encodeURIComponent(file.name.replace(/\.brew$/i, ''))}`, { method: 'POST', body: file });
+    const res = await fetch(`/api/import?name=${encodeURIComponent(file.name.replace(/\.brew$/i, ''))}`, { method: 'POST', body: file, headers: headers() });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.error || `Import failed (${res.status})`);
     return data;
@@ -66,7 +94,7 @@ export const api = {
 export function connectLive({ onMessage, onStatus }) {
   let delay = 500;
   function connect() {
-    const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws`);
+    const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/ws?session=${session.id}&client=${session.client}`);
     ws.onopen = () => { delay = 500; onStatus(true); };
     ws.onmessage = (e) => { try { onMessage(JSON.parse(e.data)); } catch {} };
     ws.onclose = () => {
